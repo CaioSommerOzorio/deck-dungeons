@@ -14,18 +14,6 @@ float yrel(float n) {
   return n / 300.0f * HEIGHT;
 }
 
-class Card {
-public:
-  Texture2D texture;
-  float height = yrel(0);
-  float width = xrel(0);
-  Card(std::string name, std::string ability, std::string description) {
-    std::string path = "assets/Scroll.png";
-    texture = LoadTexture(path.c_str());
-    std::cout << "Height " << texture.height << " Width " << texture.width << std::endl;
-  }
-};
-
 class GameObject {
 public:
   float x, y;
@@ -38,20 +26,30 @@ public:
     texture = LoadTexture(path.c_str());
   }
 
-  void draw(void) {
-    BeginDrawing();
-    ClearBackground(WHITE);
-      DrawTexturePro(
-          texture,
-          {0, 0, (float)texture.width, (float)texture.height},
-          {xrel(x), yrel(y), xrel(width), yrel(height)},
-          {0, 0},
-          rotation,
-          WHITE
-      );
-    EndDrawing();
+  virtual void draw(void) {
+    DrawTexturePro(
+      texture,
+      {0,0, (float)texture.width, (float)texture.height},
+      {xrel(0), yrel(0), xrel(width), yrel(height)},
+      {0, 0},
+      rotation,
+      WHITE
+    );
   }
 };
+
+class Card {
+public:
+  Texture2D texture;
+  float height = yrel(0);
+  float width = xrel(0);
+  Card(std::string name, std::string ability, std::string description) {
+    std::string path = "assets/Scroll.png";
+    texture = LoadTexture(path.c_str());
+    std::cout << "Height " << texture.height << " Width " << texture.width << std::endl;
+  }
+};
+
 
 class Game {
 public:
@@ -81,7 +79,9 @@ public:
   }
 
   void draw() {
-
+    hand.push_back(deck.at(deck.size()-1));
+    deck.pop_back();
+    objects.push_back(hand.at(hand.size()-1));
   }
 };
 
