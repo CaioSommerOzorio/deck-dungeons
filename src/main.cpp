@@ -124,20 +124,19 @@ public:
   }
 };
 
-
 class Game {
 public:
   std::vector<Card> hand;
-  std::vector<Card> deck;
+  std::vector<Card> deckList;
   std::vector<GameObject> objects;
+  GameObject deck{"ScrollDeck.png"};
 
   void init(void) {
-    GameObject deck("ScrollDeck.png");
-    deck.width = 32;
-    deck.height = 76;
-    deck.x = 500;
-    deck.y = 205;
-    deck.rotation = 90;
+    deck.width = 70;
+    deck.height = 30;
+    deck.x = 409;
+    deck.y = 172;
+    deck.rotation = 0;
     objects.push_back(deck);
   }
 
@@ -157,14 +156,25 @@ public:
   }
 
   void draw_card() {
-    hand.push_back(deck.at(deck.size()-1));
-    deck.pop_back();
+    if (deckList.size() == 0) {
+      std::cout << "Deck empty" << std::endl;
+      return;
+    }
+    hand.push_back(deckList.at(deckList.size()-1));
+    deckList.pop_back();
     objects.push_back(hand.at(hand.size()-1));
+  }
+
+  void click(float x, float y) {
+    //std::cout << x << " " << y << std::endl;
+    if (CheckCollisionPointRec({x, y}, {deck.x, deck.y, deck.width, deck.height})) {
+      draw_card();
+    }
   }
 };
 
 int main (void) {
-  const float screenWidth = (HEIGHT*16)/9;
+  const float screenWidth = WIDTH;
   const float screenHeight = HEIGHT;
 
   InitWindow(screenWidth, screenHeight, "Deck Dungeon");
@@ -175,6 +185,10 @@ int main (void) {
 
   while (!WindowShouldClose()) {
     game.drawObjects();
+    Vector2 mousePoint = GetMousePosition();
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+      game.click(mousePoint.x, mousePoint.y);
+    }
   }
   game.deinit();
   CloseWindow();
