@@ -8,6 +8,8 @@
 #define HEIGHT 300
 #define WIDTH 480
 
+class Game;
+
 float xrel(float n) {
   return n / 480.0f * WIDTH;
 }
@@ -23,59 +25,24 @@ typedef struct icon {
   Texture2D texture;
 } icon;
 
-enum class ActionType {
-  // Movement         //
-  Walk,               // Move 1 in any direction
-  Run,                // Move 2 forwards
-  Dodge,              // Move 2 backwards
-  RightTurn,          // Turn right, move one forward
-  LeftTurn,           // Turn left, move one forward
-  // Melee            //
-  Stab,               // Deals 2 damage to enemies in front
-  Slash,              // Deals 1 damage to adjacent enemies
-  Defend,             // You do not take damage for the next 2 turns
-  Parry,              // Ignore defence for 1 turn, deal 1 damage to enemies which attacked you that turn
-  // Ranged           //
-  QuickDraw,          // Deal 1 damage to all enemies in front
-  Aim,                // Re-orient where you're facing and deal 1 damage to enemy closest to where you're not facing
-  // Potions          //
-  LavaVial,           // Deal 3 burn damage to the enemy in front of you, 1 use
-  FrostVial,          // The enemy in front of you is unable to act for the next 3 turns., 1 use
-  VenomVial,          // Deal 1 poison to the enemy in front of you, 1 use
-  InvisibilityPotion, // Move 2 forwards, can pass through enemies, 1 use
-  VitalityPotion,     // Heal 1 heart, 1 use
-  InvigoratingPotion, // Remove all negative status from you and give you speed, 1 use
-  MugsWater,          // Draw 1 card, 1 use
-  BogWater,           // Draw 1 ranged card, 1 use
-  StillWater,         // Draw 1 melee card, 1 use
-  Rainwater,          // Draw 1 movement card, 1 use
-  // Spells           //
-  MageCage,           // Chosen adjacent enemy is unable to act for the next 3 turns, 1 use
-  ManaRegen,          // Heals 1 per turn until you move, 1 use
-  CosmicSparks,       // Explode any bombs you have discovered, 1 use
-  FlameWall,          // Deals 2 burn to chosen adjacent enemy, 1 use
-  MagicMusic,         // Move an enemy two spaces in any chosen direction, 1 use
-  TombSmash,          // Deal 3 damage to the enemy in front and stuns them, 1 use
-  HocusFocus,         // Gives you "focus"
-  // Resources        //
-  Wood,               // Stuns enemy in front of you for 1 turn
-  Stone,              // Stuns closest enemy in front of you for 1 turn
-  Ruby,               // Looks pretty
-  Gold,               // Valuable
-  Gem,                // Looks pretty
-  Iron,               // Stuns chosen enemy adjacent to you for 1 turn
-  Copper,             // Stuns chosen enemy adjacent to you for 1 turn
-  Natrium,            // Stuns chosen enemy adjacent to you for 1 turn
-  Sulfur,             // Deal 1 poison to enemy in front of you and you
-  Bomb,               // Place a bomb with a fuse of 3 turns behind in any empty position adjacent to you. Can be used 2 times before gone
-  Apple,              // Draw 1 card and heal 2, 1 use
-  GildedBoots         // Move 2 in any direction, 4 uses
+enum class Actions {
+  MOVE_CHOICE,
+  MOVE_FORWARD,
+  MOVE_BACKWARD,
+  TURN_LEFT,
+  TURN_RIGHT,
+  DAMAGE_FRONT,
+  DAMAGE_ADJACENT,
+  DEFEND,
+  PARRY,
+  BURN,
+  FREEZE
 };
 
-struct Action {
-  ActionType type;
+typedef struct cardAction {
+  Actions action;
   int value;
-};
+} cardAction;
 
 class GameObject {
 public:
@@ -103,25 +70,21 @@ public:
 
 class Card: public GameObject {
 public:
-  float height = yrel(95);
-  float width = xrel(64);
-  float x;
-  float y;
   std::vector<icon> icons;
+  std::vector<cardAction> actions;
 
-  void draw(void) {
-    DrawTexturePro(
-      texture,
-      {0,0, (float)texture.width, (float)texture.height},
-      {xrel(x), yrel(y), xrel(width), yrel(height)},
-      {0, 0},
-      rotation,
-      WHITE
-    );
+  Card() : GameObject("Scroll.png") {
+    width = 64;
+    height = 95;
+    rotation = 0;
+    y = 210;
   }
 
-  void use() {
+  void addAction(cardAction action) {
+    actions.push_back(action);
   }
+
+  void use(Game& game);
 };
 
 class Game {
@@ -129,15 +92,32 @@ public:
   std::vector<Card> hand;
   std::vector<Card> deckList;
   std::vector<GameObject> objects;
+
   GameObject deck{"ScrollDeck.png"};
+  GameObject dungeon{"Dungeon.png"};
 
   void init(void) {
+    dungeon.x = 56;
+    dungeon.y = 8;
+    dungeon.rotation = 0;
+    dungeon.width = 288;
+    dungeon.height = 144;
+    objects.push_back(dungeon);
+
     deck.width = 70;
     deck.height = 30;
     deck.x = 409;
     deck.y = 172;
     deck.rotation = 0;
     objects.push_back(deck);
+
+    // Make deck
+    deckList.push_back(Card());
+    deckList.back().addAction({Actions::MOVE_FORWARD, 1});
+    deckList.push_back(Card());
+    deckList.back().addAction({Actions::MOVE_BACKWARD, 2});
+    deckList.push_back(Card());
+    deckList.back().addAction({Actions::TURN_LEFT, 0});
   }
 
   void drawObjects(void) {
@@ -145,6 +125,9 @@ public:
     ClearBackground(WHITE);
     for (int i = 0; i < objects.size(); i++) {
       objects.at(i).draw();
+    }
+    for (int i = 0; i < hand.size(); i++) {
+      hand.at(i).draw();
     }
     EndDrawing();
   }
@@ -155,22 +138,61 @@ public:
     }
   }
 
-  void draw_card() {
+  void drawCard() {
     if (deckList.size() == 0) {
       std::cout << "Deck empty" << std::endl;
       return;
     }
+    std::cout << "Drawing card" << std::endl;
     hand.push_back(deckList.at(deckList.size()-1));
+    hand.back().x = 480 - (hand.back().width * (hand.size()));
     deckList.pop_back();
-    objects.push_back(hand.at(hand.size()-1));
   }
 
   void click(float x, float y) {
     //std::cout << x << " " << y << std::endl;
     if (CheckCollisionPointRec({x, y}, {deck.x, deck.y, deck.width, deck.height})) {
-      draw_card();
+      drawCard();
+    }
+    for (int i = 0; i < hand.size(); i++) {
+      if (CheckCollisionPointRec({x, y}, {hand.at(i).x, hand.at(i).y, hand.at(i).width, hand.at(i).height})) {
+        hand.at(i).use(*this);
+        return;
+      }
     }
   }
+
+  void discard(Card* card) {
+    for (int i = 0; i < hand.size(); i++) {
+      if (&hand[i] == card) {
+        hand.erase(hand.begin()+i);
+        break;
+      }
+    }
+  }
+};
+
+void Card::use(Game& game) {
+  for (int i = 0; i < actions.size(); i++) {
+    switch (actions.at(i).action) {
+      case Actions::MOVE_CHOICE:
+        std::cout << "move choice" << std::endl;
+        break;
+      case Actions::MOVE_FORWARD:
+        std::cout << "move forward by " << actions.at(i).value << std::endl;
+        break;
+      case Actions::MOVE_BACKWARD:
+        std::cout << "move backward by " << actions.at(i).value << std::endl;
+        break;
+      case Actions::TURN_LEFT:
+        std::cout << "turn left" << std::endl;
+        break;
+      case Actions::TURN_RIGHT:
+        std::cout << "turn right" << std::endl;
+        break;
+    }
+  }
+  game.discard(this);
 };
 
 int main (void) {
