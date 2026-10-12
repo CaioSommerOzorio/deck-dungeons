@@ -5,8 +5,8 @@
 
 #include "raylib.h"
 
-#define HEIGHT 300
-#define WIDTH 480
+#define HEIGHT 300*2
+#define WIDTH 480*2
 
 class Game;
 
@@ -68,6 +68,41 @@ public:
   }
 };
 
+// a.png is just a placeholder.
+class Text {
+public:
+  std::string text;
+  float x, y;
+  Texture2D texture;
+
+  void draw() {
+    std::string path;
+    for (int i = 0; i < text.length(); i++) {
+      if (text.at(i) == '/') {
+        path = "assets/fonts/slash.png";
+      }
+      else if (text.at(i) == ' ') {
+        i+=1;
+        continue;
+      }
+      else {
+        path = "assets/fonts/";
+        path += text.at(i);
+        path += ".png";
+      }
+      texture = LoadTexture(path.c_str());
+      DrawTexturePro(
+        texture,
+        {0,0, (float)texture.width, (float)texture.height},
+        {xrel(x) + i * xrel(6), yrel(y) + i * yrel(6), xrel(6), yrel(6)},
+        {0, 0},
+        0,
+        WHITE
+      );
+    }
+  }
+};
+
 class Card: public GameObject {
 public:
   std::vector<icon> icons;
@@ -92,11 +127,22 @@ public:
   std::vector<Card> hand;
   std::vector<Card> deckList;
   std::vector<GameObject> objects;
+  std::vector<Text> text;
 
   GameObject deck{"ScrollDeck.png"};
   GameObject dungeon{"Dungeon.png"};
+  GameObject screen{"Screen.png"};
+  GameObject frame{"Frame.png"};
+  Text example;
 
   void init(void) {
+    screen.x = 0;
+    screen.y = 0;
+    screen.rotation = 0;
+    screen.width = 480;
+    screen.height = 300;
+    objects.push_back(screen);
+
     dungeon.x = 56;
     dungeon.y = 8;
     dungeon.rotation = 0;
@@ -104,12 +150,24 @@ public:
     dungeon.height = 144;
     objects.push_back(dungeon);
 
+    frame.x = 46;
+    frame.y = 0;
+    frame.rotation = 0;
+    frame.width = 309;
+    frame.height = 160;
+    objects.push_back(frame);
+
     deck.width = 70;
     deck.height = 30;
     deck.x = 409;
     deck.y = 172;
     deck.rotation = 0;
     objects.push_back(deck);
+
+    example.text = "hello world";
+    example.x = 100;
+    example.y = 100;
+    text.push_back(example);
 
     // Make deck
     deckList.push_back(Card());
@@ -129,12 +187,22 @@ public:
     for (int i = 0; i < hand.size(); i++) {
       hand.at(i).draw();
     }
+    // now we draw text;
+    for (int i = 0; i < text.size(); i++) {
+      text.at(i).draw();
+    }
     EndDrawing();
   }
 
   void deinit() {
     for (int i = 0; i < objects.size(); i++) {
       UnloadTexture(objects.at(i).texture);
+    }
+    for (int i = 0; i < hand.size(); i++) {
+      UnloadTexture(hand.at(i).texture);
+    }
+    for (int i = 0; i < text.size(); i++) {
+      UnloadTexture(text.at(i).texture);
     }
   }
 
@@ -150,12 +218,12 @@ public:
   }
 
   void click(float x, float y) {
-    //std::cout << x << " " << y << std::endl;
-    if (CheckCollisionPointRec({x, y}, {deck.x, deck.y, deck.width, deck.height})) {
+    std::cout << x << " " << y << std::endl;
+    if (CheckCollisionPointRec({x, y}, {xrel(deck.x), yrel(deck.y), xrel(deck.width), yrel(deck.height)})) {
       drawCard();
     }
     for (int i = 0; i < hand.size(); i++) {
-      if (CheckCollisionPointRec({x, y}, {hand.at(i).x, hand.at(i).y, hand.at(i).width, hand.at(i).height})) {
+      if (CheckCollisionPointRec({x, y}, {xrel(hand.at(i).x), yrel(hand.at(i).y), xrel(hand.at(i).width), yrel(hand.at(i).height)})) {
         hand.at(i).use(*this);
         return;
       }
