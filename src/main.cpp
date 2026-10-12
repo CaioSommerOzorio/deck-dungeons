@@ -5,8 +5,8 @@
 
 #include "raylib.h"
 
-#define HEIGHT 300*2
-#define WIDTH 480*2
+#define HEIGHT 300*3
+#define WIDTH 480*3
 
 class Game;
 
@@ -44,16 +44,21 @@ typedef struct cardAction {
   int value;
 } cardAction;
 
-class GameObject {
+class uiElement {
 public:
   float x, y;
   float width, height;
   float rotation;
   Texture2D texture;
 
-  GameObject(std::string image) {
+  uiElement(std::string image, int x, int y, int rotation, int width, int height) {
     std::string path = "assets/"+image;
     texture = LoadTexture(path.c_str());
+    this->x = x;
+    this->y = y;
+    this->rotation = rotation;
+    this->width = width;
+    this->height = height;
   }
 
   virtual void draw(void) {
@@ -71,18 +76,27 @@ public:
 // a.png is just a placeholder.
 class Text {
 public:
-  std::string text;
-  float x, y;
   Texture2D texture;
+  std::string text;
+  std::string id;
+  float x, y;
+
+  Text(std::string text, float x, float y) {
+    this->text = text;
+    this->x = x;
+    this->y = y;
+  }
 
   void draw() {
     std::string path;
+    // spaces are smaller than other characters
+    int offset = 0;
     for (int i = 0; i < text.length(); i++) {
       if (text.at(i) == '/') {
         path = "assets/fonts/slash.png";
       }
       else if (text.at(i) == ' ') {
-        i+=1;
+        offset += 4;
         continue;
       }
       else {
@@ -94,7 +108,7 @@ public:
       DrawTexturePro(
         texture,
         {0,0, (float)texture.width, (float)texture.height},
-        {xrel(x) + i * xrel(6), yrel(y) + i * yrel(6), xrel(6), yrel(6)},
+        {xrel(x) + i * xrel(6) - xrel(offset), yrel(y), xrel(6), yrel(6)},
         {0, 0},
         0,
         WHITE
@@ -103,20 +117,30 @@ public:
   }
 };
 
-class Card: public GameObject {
+class Card {
 public:
   std::vector<icon> icons;
   std::vector<cardAction> actions;
-
-  Card() : GameObject("Scroll.png") {
-    width = 64;
-    height = 95;
-    rotation = 0;
-    y = 210;
-  }
+  int width = 64;
+  int height = 95;
+  int rotation = 0;
+  int y = 210;
+  int x = 0;
+  Texture2D texture = LoadTexture("assets/Scroll.png");
 
   void addAction(cardAction action) {
     actions.push_back(action);
+  }
+
+  void draw() {
+    DrawTexturePro(
+      texture,
+      {0,0, (float)texture.width, (float)texture.height},
+      {xrel(x), yrel(y), xrel(width), yrel(height)},
+      {0, 0},
+      rotation,
+      WHITE
+    );
   }
 
   void use(Game& game);
@@ -126,48 +150,42 @@ class Game {
 public:
   std::vector<Card> hand;
   std::vector<Card> deckList;
-  std::vector<GameObject> objects;
+  std::vector<uiElement> ui;
   std::vector<Text> text;
 
-  GameObject deck{"ScrollDeck.png"};
-  GameObject dungeon{"Dungeon.png"};
-  GameObject screen{"Screen.png"};
-  GameObject frame{"Frame.png"};
-  Text example;
+  uiElement screen{"Screen.png", 0, 0, 0, 480, 300};
+  uiElement dungeon{"Dungeon.png", 56, 8, 0, 288, 144};
+  uiElement frame{"Frame.png", 46, 0, 0, 309, 160};
+  uiElement deck{"ScrollDeck.png", 409, 172, 0, 70, 30};
+  uiElement actionBar{"action_bar.png", 384, 102, 0, 80, 16};
+  uiElement drawIcon{"draw_icon.png", 382, 100, 0, 20, 20};
+  uiElement dealIcon{"deal_icon.png", 382, 120, 0, 20, 20};
+  uiElement lookIcon{"look_icon.png", 382, 140, 0, 20, 20};
+
+  Text drawText{"draw 1 turn", 402, 107};
+  Text dealText{"deal 0/5", 403, 127};
+  Text lookText{"look 1 turn", 403, 147};
+
+  Texture2D cursor;
 
   void init(void) {
-    screen.x = 0;
-    screen.y = 0;
-    screen.rotation = 0;
-    screen.width = 480;
-    screen.height = 300;
-    objects.push_back(screen);
+    cursor = LoadTexture("assets/Cursor.png");
 
-    dungeon.x = 56;
-    dungeon.y = 8;
-    dungeon.rotation = 0;
-    dungeon.width = 288;
-    dungeon.height = 144;
-    objects.push_back(dungeon);
+    ui.push_back(screen);
+    ui.push_back(dungeon);
+    ui.push_back(frame);
+    ui.push_back(deck);
+    for (int i = 0; i < 3; i++) {
+      ui.push_back(actionBar);
+      ui.back().y = 102 + 20 * i;
+    }
+    ui.push_back(drawIcon);
+    ui.push_back(dealIcon);
+    ui.push_back(lookIcon);
 
-    frame.x = 46;
-    frame.y = 0;
-    frame.rotation = 0;
-    frame.width = 309;
-    frame.height = 160;
-    objects.push_back(frame);
-
-    deck.width = 70;
-    deck.height = 30;
-    deck.x = 409;
-    deck.y = 172;
-    deck.rotation = 0;
-    objects.push_back(deck);
-
-    example.text = "hello world";
-    example.x = 100;
-    example.y = 100;
-    text.push_back(example);
+    text.push_back(drawText);
+    text.push_back(dealText);
+    text.push_back(lookText);
 
     // Make deck
     deckList.push_back(Card());
@@ -178,25 +196,33 @@ public:
     deckList.back().addAction({Actions::TURN_LEFT, 0});
   }
 
-  void drawObjects(void) {
+  void drawObjects(float x, float y) {
     BeginDrawing();
     ClearBackground(WHITE);
-    for (int i = 0; i < objects.size(); i++) {
-      objects.at(i).draw();
+    for (int i = 0; i < ui.size(); i++) {
+      ui.at(i).draw();
     }
     for (int i = 0; i < hand.size(); i++) {
       hand.at(i).draw();
     }
-    // now we draw text;
     for (int i = 0; i < text.size(); i++) {
       text.at(i).draw();
     }
+    // draw cursor
+    DrawTexturePro(
+      cursor,
+      {0,0, (float)cursor.width, (float)cursor.height},
+      {x, y, xrel(12), yrel(12)},
+      {0, 0},
+      0,
+      WHITE
+    );
     EndDrawing();
   }
 
   void deinit() {
-    for (int i = 0; i < objects.size(); i++) {
-      UnloadTexture(objects.at(i).texture);
+    for (int i = 0; i < ui.size(); i++) {
+      UnloadTexture(ui.at(i).texture);
     }
     for (int i = 0; i < hand.size(); i++) {
       UnloadTexture(hand.at(i).texture);
@@ -204,6 +230,8 @@ public:
     for (int i = 0; i < text.size(); i++) {
       UnloadTexture(text.at(i).texture);
     }
+    // unload cursor
+    UnloadTexture(cursor);
   }
 
   void drawCard() {
@@ -270,15 +298,17 @@ int main (void) {
   InitWindow(screenWidth, screenHeight, "Deck Dungeon");
   SetTargetFPS(60);
 
+  HideCursor();
+
   Game game;
   game.init();
 
   while (!WindowShouldClose()) {
-    game.drawObjects();
-    Vector2 mousePoint = GetMousePosition();
+    Vector2 mousePos = GetMousePosition();
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-      game.click(mousePoint.x, mousePoint.y);
+      game.click(mousePos.x, mousePos.y);
     }
+    game.drawObjects(mousePos.x, mousePos.y);
   }
   game.deinit();
   CloseWindow();
