@@ -1,5 +1,7 @@
 LINUX_FLAGS = -lraylib -lGL -lm -lpthread -ldl -lrt
-WINDOWS_FLAGS = -I./raylib_win64/include -L./raylib_win64/lib -lraylib -lopengl32 -lgdi32 -lwinmm -lpthread
+WINDOWS_FLAGS = -I./raylib_win64/include -L./raylib_win64/lib \
+	-lraylib -lopengl32 -lgdi32 -lwinmm \
+	-static -static-libgcc -static-libstdc++
 
 .PHONY: build run clean
 
