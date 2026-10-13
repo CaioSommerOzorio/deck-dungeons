@@ -2,6 +2,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <array>
 
 #include "raylib.h"
 
@@ -36,7 +37,22 @@ enum class Actions {
   DEFEND,
   PARRY,
   BURN,
-  FREEZE
+  FREEZE,
+  COUNT
+};
+
+std::array<std::string, static_cast<int>(Actions::COUNT)> actionDescriptions = {
+  "move in any chosen direction by X",
+  "move forwards by X",
+  "move backwards by X",
+  "turn left",
+  "turn right",
+  "damage an enemy in front",
+  "damage an enemy adjacent",
+  "you do not take damage for X turns",
+  "deal X damage to an enemy that attacked you",
+  "deal X burn damage to an enemy in front",
+  "the enemy in front of you is frozen for X turns"
 };
 
 typedef struct cardAction {
@@ -73,10 +89,9 @@ public:
   }
 };
 
-// a.png is just a placeholder.
 class Text {
 public:
-  Texture2D texture;
+  std::unordered_map<char, Texture2D> textures;
   std::string text;
   std::string id;
   float x, y;
@@ -85,48 +100,72 @@ public:
     this->text = text;
     this->x = x;
     this->y = y;
+    textures['/'] = LoadTexture("assets/fonts/slash.png");
   }
 
   void draw() {
-    std::string path;
-    // spaces are smaller than other characters
     int offset = 0;
+    int line = 0;
+    int increment = 0;
+
     for (int i = 0; i < text.length(); i++) {
-      if (text.at(i) == '/') {
-        path = "assets/fonts/slash.png";
-      }
-      else if (text.at(i) == ' ') {
+      char c = text[i];
+
+      if (c == ' ') {
         offset += 4;
+        increment ++;
         continue;
       }
-      else {
-        path = "assets/fonts/";
-        path += text.at(i);
-        path += ".png";
+
+      if (c == '\n') {
+        line++;
+        offset = 0;
+        increment = 0;
+        continue;
       }
-      texture = LoadTexture(path.c_str());
+
+      if (textures.find(c) == textures.end()) {
+        std::string path = "assets/fonts/";
+        path += c;
+        path += ".png";
+
+        textures[c] = LoadTexture(path.c_str());
+      }
+
+      Texture2D texture = textures.at(c);
+
       DrawTexturePro(
         texture,
-        {0,0, (float)texture.width, (float)texture.height},
-        {xrel(x) + i * xrel(6) - xrel(offset), yrel(y), xrel(6), yrel(6)},
-        {0, 0},
-        0,
-        WHITE
+        {0, 0, (float)texture.width, (float)texture.height},
+        {
+          xrel(x) + i * xrel(6) - xrel(offset),
+          yrel(y) + line * yrel(8),
+          xrel(6), yrel(6)
+        },
+        {0, 0}, 0, WHITE
       );
+      increment++;
+    }
+  }
+
+  void unload(void) {
+    for (auto& [character, texture] : textures) {
+      UnloadTexture(texture);
     }
   }
 };
 
 class Card {
 public:
-  std::vector<icon> icons;
-  std::vector<cardAction> actions;
+  Texture2D texture = LoadTexture("assets/ui/scroll.png");
+
   int width = 64;
   int height = 95;
   int rotation = 0;
   int y = 210;
   int x = 0;
-  Texture2D texture = LoadTexture("assets/Scroll.png");
+
+  std::vector<cardAction> actions;
 
   void addAction(cardAction action) {
     actions.push_back(action);
@@ -143,6 +182,9 @@ public:
     );
   }
 
+  void hover() {
+  }
+
   void use(Game& game);
 };
 
@@ -153,23 +195,27 @@ public:
   std::vector<uiElement> ui;
   std::vector<Text> text;
 
-  uiElement screen{"Screen.png", 0, 0, 0, 480, 300};
-  uiElement dungeon{"Dungeon.png", 56, 8, 0, 288, 144};
-  uiElement frame{"Frame.png", 46, 0, 0, 309, 160};
-  uiElement deck{"ScrollDeck.png", 409, 172, 0, 70, 30};
-  uiElement actionBar{"action_bar.png", 384, 102, 0, 80, 16};
-  uiElement drawIcon{"draw_icon.png", 382, 100, 0, 20, 20};
-  uiElement dealIcon{"deal_icon.png", 382, 120, 0, 20, 20};
-  uiElement lookIcon{"look_icon.png", 382, 140, 0, 20, 20};
+  uiElement screen{"ui/screen.png", 0, 0, 0, 480, 300};
+  uiElement dungeon{"env/dungeon.png", 56, 8, 0, 288, 144};
+  uiElement frame{"ui/frame.png", 46, 0, 0, 309, 160};
+  uiElement deck{"ui/scroll_deck.png", 409, 172, 0, 70, 30};
+  uiElement actionBar{"ui/action_bar.png", 384, 102, 0, 80, 16};
+  uiElement drawIcon{"ui/draw_icon.png", 382, 100, 0, 20, 20};
+  uiElement dealIcon{"ui/deal_icon.png", 382, 120, 0, 20, 20};
+  uiElement lookIcon{"ui/look_icon.png", 382, 140, 0, 20, 20};
 
   Text drawText{"draw 1 turn", 402, 107};
-  Text dealText{"deal 0/5", 403, 127};
-  Text lookText{"look 1 turn", 403, 147};
+  Text dealText{"deal 1/5", 403, 127};
+  Text lookText{"look 1 turn\nthis is some text!", 403, 147};
 
   Texture2D cursor;
 
+  int turnCount;
+
   void init(void) {
-    cursor = LoadTexture("assets/Cursor.png");
+    turnCount = 0;
+
+    cursor = LoadTexture("assets/ui/cursor.png");
 
     ui.push_back(screen);
     ui.push_back(dungeon);
@@ -227,8 +273,8 @@ public:
     for (int i = 0; i < hand.size(); i++) {
       UnloadTexture(hand.at(i).texture);
     }
-    for (int i = 0; i < text.size(); i++) {
-      UnloadTexture(text.at(i).texture);
+    for (auto& t : text) {
+      t.unload();
     }
     // unload cursor
     UnloadTexture(cursor);
@@ -246,9 +292,13 @@ public:
   }
 
   void click(float x, float y) {
-    std::cout << x << " " << y << std::endl;
-    if (CheckCollisionPointRec({x, y}, {xrel(deck.x), yrel(deck.y), xrel(deck.width), yrel(deck.height)})) {
+    if (CheckCollisionPointRec({x, y}, {xrel(ui.at(4).x), yrel(ui.at(4).y), xrel(ui.at(4).width), yrel(ui.at(4).height)})) {
       drawCard();
+      passTurn();
+    }
+    else if (CheckCollisionPointRec({x, y}, {xrel(ui.at(5).x), yrel(ui.at(5).y), xrel(ui.at(5).width), yrel(ui.at(5).height)})) {
+      // Will add look functionality later
+      passTurn();
     }
     for (int i = 0; i < hand.size(); i++) {
       if (CheckCollisionPointRec({x, y}, {xrel(hand.at(i).x), yrel(hand.at(i).y), xrel(hand.at(i).width), yrel(hand.at(i).height)})) {
@@ -265,6 +315,12 @@ public:
         break;
       }
     }
+  }
+
+  void passTurn() {
+    turnCount += 1;
+    int dealCount = turnCount % 5 + 1;
+    text.at(1).text = "deal " + std::to_string(dealCount) + "/5";
   }
 };
 
