@@ -1,15 +1,37 @@
 #include <unordered_map>
+#include <algorithm>
 #include <iostream>
+#include <cstddef>
 #include <string>
 #include <vector>
 #include <array>
 
 #include "raylib.h"
 
-#define HEIGHT 300*3
-#define WIDTH 480*3
+#define HEIGHT 300*2
+#define WIDTH 480*2
 
 class Game;
+
+void replaceAll(std::string& str, const std::string& target, const std::string& replacement) {
+  size_t pos = 0;
+  while ((pos = str.find(target, pos)) != std::string::npos) {
+    str.replace(pos, target.length(), replacement);
+    pos += replacement.length();
+  }
+}
+
+int substrCount(const std::string& main_str, const std::string& target) {
+  if (main_str.empty() || target.empty()) return 0;
+
+  int count = 0;
+  size_t pos = main_str.find(target, 0);
+  while (pos != std::string::npos) {
+    count++;
+    pos = main_str.find(target, pos + target.length()); 
+  }
+  return count;
+}
 
 float xrel(float n) {
   return n / 480.0f * WIDTH;
@@ -159,6 +181,16 @@ class Card {
 public:
   Texture2D texture = LoadTexture("assets/ui/scroll.png");
 
+  Texture2D top_left = LoadTexture("assets/ui/sizeable_scroll/top_left.png");
+  Texture2D middle_left = LoadTexture("assets/ui/sizeable_scroll/middle_left.png");
+  Texture2D bottom_left = LoadTexture("assets/ui/sizeable_scroll/bottom_left.png");
+  Texture2D top_middle = LoadTexture("assets/ui/sizeable_scroll/top_middle.png");
+  Texture2D middle_middle = LoadTexture("assets/ui/sizeable_scroll/middle_middle.png");
+  Texture2D bottom_middle = LoadTexture("assets/ui/sizeable_scroll/bottom_middle.png");
+  Texture2D top_right = LoadTexture("assets/ui/sizeable_scroll/top_right.png");
+  Texture2D middle_right = LoadTexture("assets/ui/sizeable_scroll/middle_right.png");
+  Texture2D bottom_right = LoadTexture("assets/ui/sizeable_scroll/bottom_right.png");
+
   int width = 64;
   int height = 95;
   int rotation = 0;
@@ -183,8 +215,85 @@ public:
   }
 
   void hover() {
-  }
+    if (actions.empty()) return;
 
+    const std::string& description =
+      actionDescriptions[static_cast<std::size_t>(actions.at(0).action)];
+
+    int textHeight = static_cast<int>(actions.size()) * 8;
+
+    int spaces = static_cast<int>(
+      std::count(description.begin(), description.end(), ' ')
+    );
+
+    int textWidth = static_cast<int>(description.size()) * 6 - spaces * 2;
+
+    // Your existing DrawTexturePro() calls go here...
+    // Top row
+    DrawTexturePro(top_left,
+      {0, 0, (float)top_left.width, (float)top_left.height},
+      {xrel(10), yrel(10), xrel(top_left.width), yrel(top_left.height)},
+      {0, 0}, rotation, WHITE);
+
+    DrawTexturePro(top_middle,
+      {0, 0, (float)top_middle.width, (float)top_middle.height},
+      {xrel(10) + xrel( top_left.width), yrel(10), xrel(textWidth), yrel(top_middle.height)},
+      {0, 0}, rotation, WHITE);
+
+    DrawTexturePro(top_right,
+      {0, 0, (float)top_right.width, (float)top_right.height},
+      {xrel(10) + xrel( top_left.width + textWidth), yrel(10),
+       xrel(top_right.width), yrel(top_right.height)},
+      {0, 0}, rotation, WHITE);
+
+    // Middle row
+    DrawTexturePro(middle_left,
+      {0, 0, (float)middle_left.width, (float)middle_left.height},
+      {xrel(10), yrel(10) + yrel(top_left.height),
+       xrel(middle_left.width), yrel(textHeight)},
+      {0, 0}, rotation, WHITE);
+
+    DrawTexturePro(middle_middle,
+      {0, 0, (float)middle_middle.width, (float)middle_middle.height},
+      {xrel(10) + xrel( middle_left.width), yrel(10) + yrel( top_left.height),
+       xrel(textWidth), yrel(textHeight)},
+      {0, 0}, rotation, WHITE);
+
+    DrawTexturePro(middle_right,
+      {0, 0, (float)middle_right.width, (float)middle_right.height},
+      {xrel(10) + xrel( middle_left.width + textWidth), yrel(10) + yrel( top_left.height),
+       xrel(middle_right.width), yrel(textHeight)},
+      {0, 0}, rotation, WHITE);
+
+    // Bottom row
+    DrawTexturePro(bottom_left,
+      {0, 0, (float)bottom_left.width, (float)bottom_left.height},
+      {xrel(10), yrel(10) + yrel( top_left.height + textHeight),
+       xrel(bottom_left.width), yrel(bottom_left.height)},
+      {0, 0}, rotation, WHITE);
+
+    DrawTexturePro(bottom_middle,
+      {0, 0, (float)bottom_middle.width, (float)bottom_middle.height},
+      {xrel(10) + xrel( bottom_left.width), yrel(10) + yrel( top_left.height + textHeight),
+       xrel(textWidth), yrel(bottom_middle.height)},
+      {0, 0}, rotation, WHITE);
+
+    DrawTexturePro(bottom_right,
+      {0, 0, (float)bottom_right.width, (float)bottom_right.height},
+      {xrel(10) + xrel( bottom_left.width + textWidth),
+       yrel(10) + yrel( top_left.height + textHeight),
+       xrel(bottom_right.width), yrel(bottom_right.height)},
+      {0, 0}, rotation, WHITE);
+
+    for (int i = 0; i < actions.size(); i++) {
+      std::string description =
+        actionDescriptions[static_cast<std::size_t>(actions.at(i).action)];
+
+      replaceAll(description, "X", std::to_string(actions.at(i).value));
+      Text hoverText(description, 35, 30 + i * 8);
+      hoverText.draw();
+    }
+  }
   void use(Game& game);
 };
 
@@ -250,10 +359,14 @@ public:
     }
     for (int i = 0; i < hand.size(); i++) {
       hand.at(i).draw();
+      if (CheckCollisionPointRec({x, y}, {xrel(hand.at(i).x), yrel(hand.at(i).y), xrel(hand.at(i).width), yrel(hand.at(i).height)})) {
+        hand.at(i).hover();
+      }
     }
     for (int i = 0; i < text.size(); i++) {
       text.at(i).draw();
     }
+
     // draw cursor
     DrawTexturePro(
       cursor,
