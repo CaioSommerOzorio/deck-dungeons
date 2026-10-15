@@ -111,9 +111,10 @@ public:
   }
 };
 
+std::unordered_map<char, Texture2D> letters;
+
 class Text {
 public:
-  std::unordered_map<char, Texture2D> textures;
   std::string text;
   std::string id;
   float x, y;
@@ -122,7 +123,6 @@ public:
     this->text = text;
     this->x = x;
     this->y = y;
-    textures['/'] = LoadTexture("assets/fonts/slash.png");
   }
 
   void draw() {
@@ -146,15 +146,7 @@ public:
         continue;
       }
 
-      if (textures.find(c) == textures.end()) {
-        std::string path = "assets/fonts/";
-        path += c;
-        path += ".png";
-
-        textures[c] = LoadTexture(path.c_str());
-      }
-
-      Texture2D texture = textures.at(c);
+      Texture2D texture = letters.at(c);
 
       DrawTexturePro(
         texture,
@@ -167,12 +159,6 @@ public:
         {0, 0}, 0, WHITE
       );
       increment++;
-    }
-  }
-
-  void unload(void) {
-    for (auto& [character, texture] : textures) {
-      UnloadTexture(texture);
     }
   }
 };
@@ -315,13 +301,14 @@ public:
 
   Text drawText{"draw 1 turn", 402, 107};
   Text dealText{"deal 1/5", 403, 127};
-  Text lookText{"look 1 turn\nthis is some text!", 403, 147};
+  Text lookText{"look 1 turn", 403, 147};
 
   Texture2D cursor;
 
   int turnCount;
 
   void init(void) {
+
     turnCount = 0;
 
     cursor = LoadTexture("assets/ui/cursor.png");
@@ -342,7 +329,20 @@ public:
     text.push_back(dealText);
     text.push_back(lookText);
 
-    // Make deck
+    // init font textures
+    for (char letter = 'a'; letter <= 'z'; letter++) {
+      std::string path = "assets/fonts/" + std::string(1, letter) + ".png";
+      letters[letter] = LoadTexture(path.c_str());
+    }
+
+    for (char letter = '0'; letter <= '9'; letter++) {
+      std::string path = "assets/fonts/" + std::string(1, letter) + ".png";
+      letters[letter] = LoadTexture(path.c_str());
+    }
+
+    letters.insert({'/', LoadTexture("assets/fonts/slash.png")});
+
+    // make deck
     deckList.push_back(Card());
     deckList.back().addAction({Actions::MOVE_FORWARD, 1});
     deckList.push_back(Card());
@@ -386,8 +386,8 @@ public:
     for (int i = 0; i < hand.size(); i++) {
       UnloadTexture(hand.at(i).texture);
     }
-    for (auto& t : text) {
-      t.unload();
+    for (const auto& [key, font] : letters) {
+      UnloadTexture(font);
     }
     // unload cursor
     UnloadTexture(cursor);
@@ -395,10 +395,8 @@ public:
 
   void drawCard() {
     if (deckList.size() == 0) {
-      std::cout << "Deck empty" << std::endl;
       return;
     }
-    std::cout << "Drawing card" << std::endl;
     hand.push_back(deckList.at(deckList.size()-1));
     hand.back().x = 480 - (hand.back().width * (hand.size()));
     deckList.pop_back();
@@ -461,6 +459,7 @@ void Card::use(Game& game) {
 };
 
 int main (void) {
+  //SetTraceLogLevel(LOG_NONE);
   const float screenWidth = WIDTH;
   const float screenHeight = HEIGHT;
 
