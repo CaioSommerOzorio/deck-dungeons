@@ -228,7 +228,6 @@ public:
 
     int textWidth = static_cast<int>(description.size()) * 6 - spaces * 2;
 
-    // Your existing DrawTexturePro() calls go here...
     // Top row
     DrawTexturePro(top_left,
       {0, 0, (float)top_left.width, (float)top_left.height},
@@ -237,12 +236,13 @@ public:
 
     DrawTexturePro(top_middle,
       {0, 0, (float)top_middle.width, (float)top_middle.height},
-      {xrel(10) + xrel( top_left.width), yrel(10), xrel(textWidth), yrel(top_middle.height)},
+      {xrel(10) + xrel(top_left.width), yrel(27),
+      xrel(textWidth), yrel(top_middle.height)},
       {0, 0}, rotation, WHITE);
 
     DrawTexturePro(top_right,
       {0, 0, (float)top_right.width, (float)top_right.height},
-      {xrel(10) + xrel( top_left.width + textWidth), yrel(10),
+      {xrel(10) + xrel( top_left.width + textWidth), yrel(27),
        xrel(top_right.width), yrel(top_right.height)},
       {0, 0}, rotation, WHITE);
 
@@ -290,7 +290,7 @@ public:
         actionDescriptions[static_cast<std::size_t>(actions.at(i).action)];
 
       replaceAll(description, "X", std::to_string(actions.at(i).value));
-      Text hoverText(description, 35, 30 + i * 8);
+      Text hoverText(description, 35, 30 + (i + 1) * 8);
       hoverText.draw();
     }
   }
