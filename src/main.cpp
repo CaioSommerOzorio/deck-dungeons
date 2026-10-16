@@ -167,15 +167,41 @@ class Card {
 public:
   Texture2D texture = LoadTexture("assets/ui/scroll.png");
 
-  Texture2D top_left = LoadTexture("assets/ui/sizeable_scroll/top_left.png");
-  Texture2D middle_left = LoadTexture("assets/ui/sizeable_scroll/middle_left.png");
-  Texture2D bottom_left = LoadTexture("assets/ui/sizeable_scroll/bottom_left.png");
-  Texture2D top_middle = LoadTexture("assets/ui/sizeable_scroll/top_middle.png");
+  Texture2D top_left      = LoadTexture("assets/ui/sizeable_scroll/top_left.png");
+  Texture2D middle_left   = LoadTexture("assets/ui/sizeable_scroll/middle_left.png");
+  Texture2D bottom_left   = LoadTexture("assets/ui/sizeable_scroll/bottom_left.png");
+  Texture2D top_middle    = LoadTexture("assets/ui/sizeable_scroll/top_middle.png");
   Texture2D middle_middle = LoadTexture("assets/ui/sizeable_scroll/middle_middle.png");
   Texture2D bottom_middle = LoadTexture("assets/ui/sizeable_scroll/bottom_middle.png");
-  Texture2D top_right = LoadTexture("assets/ui/sizeable_scroll/top_right.png");
-  Texture2D middle_right = LoadTexture("assets/ui/sizeable_scroll/middle_right.png");
-  Texture2D bottom_right = LoadTexture("assets/ui/sizeable_scroll/bottom_right.png");
+  Texture2D top_right     = LoadTexture("assets/ui/sizeable_scroll/top_right.png");
+  Texture2D middle_right  = LoadTexture("assets/ui/sizeable_scroll/middle_right.png");
+  Texture2D bottom_right  = LoadTexture("assets/ui/sizeable_scroll/bottom_right.png");
+
+  Texture2D bomb_scroll       = LoadTexture("assets/scroll_icons/bomb_scroll.png");
+  Texture2D defend_scroll     = LoadTexture("assets/scroll_icons/defend_scroll.png");
+  Texture2D heal_heart_scroll = LoadTexture("assets/scroll_icons/heal_heart_scroll.png");
+  Texture2D insight_scroll    = LoadTexture("assets/scroll_icons/insight_scroll.png");
+  Texture2D melee_scroll      = LoadTexture("assets/scroll_icons/melee_scroll.png");
+  Texture2D movement_scroll   = LoadTexture("assets/scroll_icons/movement_scroll.png");
+  Texture2D move_scroll       = LoadTexture("assets/scroll_icons/move_scroll.png");
+  Texture2D potion_scroll     = LoadTexture("assets/scroll_icons/potion_scroll.png");
+  Texture2D ranged_scroll     = LoadTexture("assets/scroll_icons/ranged_scroll.png");
+  Texture2D spell_scroll      = LoadTexture("assets/scroll_icons/spell_scroll.png");
+  Texture2D turn_scroll       = LoadTexture("assets/scroll_icons/turn_scroll.png");
+
+  std::array<Texture2D, static_cast<int>(Actions::COUNT)> actionTextures = {
+    move_scroll, // "move in any chosen direction by X",
+    move_scroll, // "move forwards by X",
+    move_scroll, // "move backwards by X",
+    move_scroll, // "turn left",
+    move_scroll, // "turn right",
+    melee_scroll, // "damage an enemy in front",
+    melee_scroll, // "damage an enemy adjacent",
+    defend_scroll, // "you do not take damage for X turns",
+    defend_scroll, // "deal X damage to an enemy that attacked you",
+    potion_scroll, // "deal X burn damage to an enemy in front",
+    potion_scroll, // "the enemy in front of you is frozen for X turns"
+  };
 
   int width = 64;
   int height = 95;
@@ -198,6 +224,18 @@ public:
       rotation,
       WHITE
     );
+
+    for (int i = 0; i < actions.size(); i++) {
+      int actionIndex = static_cast<int>(actions.at(i).action);
+      int yOffset = texture.height / (actions.size() + 1) - 16;
+      DrawTexturePro(
+        actionTextures[actionIndex],
+        {0, 0, (float)actionTextures[actionIndex].width, (float)actionTextures[actionIndex].height},
+        {xrel(x + (texture.width / 2)), yrel(y + yOffset), xrel(16), yrel(16)},
+        {0, 0}, 0, WHITE
+      );
+      std::cout << yrel(y + (texture.height / (i + 1))) << std::endl;
+    }
   }
 
   void hover() {
