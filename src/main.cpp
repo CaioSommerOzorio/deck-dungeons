@@ -161,6 +161,8 @@ public:
     int line = 0;
     int increment = 0;
 
+    std::cout << text << std::endl;
+
     for (int i = 0; i < text.length(); i++) {
       char c = text[i];
 
@@ -180,6 +182,9 @@ public:
       std::string textureName = std::to_string(c);
       if (textureName == std::to_string('/')) {
         textureName = "slash";
+      }
+      else if (textureName == std::to_string(':')) {
+        textureName = "colon";
       }
 
       Texture2D texture = textures[textureName];
@@ -347,10 +352,12 @@ public:
   Text drawText{"draw 1 turn", 402, 107};
   Text dealText{"deal 1/5", 403, 127};
   Text lookText{"look 1 turn", 403, 147};
+  Text deckCount{"deck: X/Y", 340, 189};
 
   std::random_device rd;
 
   int turnCount;
+  int deckSize;
 
   void init(void) {
     turnCount = 0;
@@ -370,6 +377,7 @@ public:
     text.push_back(drawText);
     text.push_back(dealText);
     text.push_back(lookText);
+    text.push_back(deckCount);
 
     // make deck
     for (int i = 0; i < 5; i++) {
@@ -403,7 +411,9 @@ public:
       deckList.push_back(Card("aim"));
     }
     deckList.push_back(Card("parry"));
-    std::cout << deckList.size() << std::endl;
+    this->deckSize = deckList.size();
+    std::string deckString = "deck: " + std::to_string(this->deckSize) + "/" + std::to_string(this->deckSize);
+    text.at(3).text = deckString;
     shuffleDeck();
   }
 
@@ -424,6 +434,7 @@ public:
         hand.at(i).hover();
       }
     }
+    text.at(3).text = "deck: " + std::to_string(this->deckList.size()) + "/" + std::to_string(this->deckSize);
     for (int i = 0; i < text.size(); i++) {
       text.at(i).draw();
     }
@@ -523,7 +534,6 @@ int main (void) {
 
   textures = {
     {"mystery_dungeon", LoadTexture("assets/dungeons/mystery_dungeon.png")},
-    {"slash", LoadTexture("assets/fonts/slash.png")},
 
     // Card related
     {"scroll", LoadTexture("assets/ui/scroll.png")},
@@ -559,7 +569,11 @@ int main (void) {
     {"heart", LoadTexture("assets/ui/heart.png")},
     {"frame", LoadTexture("assets/ui/frame.png")},
     {"screen", LoadTexture("assets/ui/screen.png")},
-    {"deck", LoadTexture("assets/ui/scroll_deck.png")}
+    {"deck", LoadTexture("assets/ui/scroll_deck.png")},
+
+    // Additional Fonts
+    {"colon", LoadTexture("assets/fonts/colon.png")},
+    {"slash", LoadTexture("assets/fonts/slash.png")}
   };
 
   actionTextures = {
