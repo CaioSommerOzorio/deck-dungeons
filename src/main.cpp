@@ -99,8 +99,8 @@ std::unordered_map<std::string, std::vector<cardAction>> cardActions = {
   {"walk", {{Actions::MOVE_CHOICE, 1}}},
   {"run", {{Actions::MOVE_FORWARD, 2}}},
   {"dodge", {{Actions::MOVE_BACKWARD, 2}}},
-  {"right turn", {{Actions::TURN_RIGHT, 1}, {Actions::MOVE_FORWARD, 1}}},
-  {"left turn", {{Actions::TURN_LEFT, 1}, {Actions::MOVE_FORWARD, 1}}},
+  {"turn right", {{Actions::TURN_RIGHT, 1}, {Actions::MOVE_FORWARD, 1}}},
+  {"turn left", {{Actions::TURN_LEFT, 1}, {Actions::MOVE_FORWARD, 1}}},
   // melee
   {"stab", {{Actions::DAMAGE_FRONT, 2}}},
   {"slash", {{Actions::DAMAGE_ADJACENT, 1}}},
@@ -216,6 +216,10 @@ public:
 
   Card(std::string cardName = "") {
     if (cardName != "") {
+      if (!cardActions.contains(cardName)) {
+        std::cout << "action not found: " << cardName << std::endl;
+        return;
+      }
       for (int i = 0; i < cardActions[cardName].size(); i++) {
         actions.push_back(cardActions[cardName][i]);
       }
@@ -251,11 +255,17 @@ public:
   void hover() {
     if (actions.empty()) return;
 
+    auto longest = std::max_element(
+      actions.begin(), actions.end(),
+      [](const cardAction& a, const cardAction& b) {
+        return actionDescriptions[static_cast<std::size_t>(a.action)].length()
+          < actionDescriptions[static_cast<std::size_t>(b.action)].length();
+      }
+    );
     const std::string& description =
-      actionDescriptions[static_cast<std::size_t>(actions.at(0).action)];
+      actionDescriptions[static_cast<std::size_t>(longest->action)];
 
     int textHeight = static_cast<int>(actions.size()) * 8;
-
     int spaces = static_cast<int>(
       std::count(description.begin(), description.end(), ' ')
     );
@@ -276,7 +286,7 @@ public:
 
     DrawTexturePro(textures["top_right"],
       {0, 0, (float)textures["top_right"].width, (float)textures["top_right"].height},
-      {xrel(10) + xrel( textures["top_left"].width + textWidth), yrel(27),
+      {xrel(10) + xrel(textures["top_left"].width + textWidth), yrel(27),
        xrel(textures["top_right"].width), yrel(textures["top_right"].height)},
       {0, 0}, rotation, WHITE);
 
@@ -289,33 +299,33 @@ public:
 
     DrawTexturePro(textures["middle_middle"],
       {0, 0, (float)textures["middle_middle"].width, (float)textures["middle_middle"].height},
-      {xrel(10) + xrel( textures["middle_left"].width), yrel(10) + yrel( textures["top_left"].height),
+      {xrel(10) + xrel(textures["middle_left"].width), yrel(10) + yrel(textures["top_left"].height),
        xrel(textWidth), yrel(textHeight)},
       {0, 0}, rotation, WHITE);
 
     DrawTexturePro(textures["middle_right"],
       {0, 0, (float)textures["middle_right"].width, (float)textures["middle_right"].height},
-      {xrel(10) + xrel( textures["middle_left"].width + textWidth), yrel(10) + yrel( textures["top_left"].height),
+      {xrel(10) + xrel(textures["middle_left"].width + textWidth), yrel(10) + yrel(textures["top_left"].height),
        xrel(textures["middle_right"].width), yrel(textHeight)},
       {0, 0}, rotation, WHITE);
 
     // Bottom row
     DrawTexturePro(textures["bottom_left"],
       {0, 0, (float)textures["bottom_left"].width, (float)textures["bottom_left"].height},
-      {xrel(10), yrel(10) + yrel( textures["top_left"].height + textHeight),
+      {xrel(10), yrel(10) + yrel(textures["top_left"].height + textHeight),
        xrel(textures["bottom_left"].width), yrel(textures["bottom_left"].height)},
       {0, 0}, rotation, WHITE);
 
     DrawTexturePro(textures["bottom_middle"],
       {0, 0, (float)textures["bottom_middle"].width, (float)textures["bottom_middle"].height},
-      {xrel(10) + xrel( textures["bottom_left"].width), yrel(10) + yrel( textures["top_left"].height + textHeight),
+      {xrel(10) + xrel(textures["bottom_left"].width), yrel(10) + yrel(textures["top_left"].height + textHeight),
        xrel(textWidth), yrel(textures["bottom_middle"].height)},
       {0, 0}, rotation, WHITE);
 
     DrawTexturePro(textures["bottom_right"],
       {0, 0, (float)textures["bottom_right"].width, (float)textures["bottom_right"].height},
-      {xrel(10) + xrel( textures["bottom_left"].width + textWidth),
-       yrel(10) + yrel( textures["top_left"].height + textHeight),
+      {xrel(10) + xrel(textures["bottom_left"].width + textWidth),
+       yrel(10) + yrel(textures["top_left"].height + textHeight),
        xrel(textures["bottom_right"].width), yrel(textures["bottom_right"].height)},
       {0, 0}, rotation, WHITE);
 
@@ -333,6 +343,9 @@ public:
 
 class Game {
 public:
+  // TEMPORARY will only load when needed
+  Sound mystery_soundtrack = LoadSound("soundtrack/mystery_dungeon.mp3");
+
   std::vector<Card> hand;
   std::vector<Card> deckList;
   std::vector<uiElement> ui;
@@ -358,6 +371,7 @@ public:
   int deckSize;
 
   void init(void) {
+    PlaySound(mystery_soundtrack);
     turnCount = 0;
 
     ui.push_back(screen);
@@ -453,6 +467,7 @@ public:
     for (const auto& [key, value]: textures) {
       UnloadTexture(value);
     }
+    UnloadSound(mystery_soundtrack);
   }
 
   void drawCard() {
@@ -465,7 +480,6 @@ public:
     hand.push_back(deckList.at(deckList.size()-1));
     hand.back().x = 480 - (hand.back().width * (hand.size()));
     deckList.pop_back();
-    this->deckSize = deckList.size();
   }
 
   void click(float x, float y) {
@@ -488,6 +502,10 @@ public:
         break;
       }
     }
+    for (int i = 0; i < hand.size(); i++) {
+      hand.at(i).x = 480 - (hand.at(i).width * (i + 1));
+    }
+    std::cout << "card discarded" << std::endl;
   }
 
   void passTurn() {
@@ -530,6 +548,7 @@ int main (void) {
   const float screenHeight = HEIGHT;
 
   InitWindow(screenWidth, screenHeight, "Deck Dungeon");
+  InitAudioDevice();
   SetTargetFPS(60);
 
   HideCursor();
@@ -615,6 +634,7 @@ int main (void) {
     game.drawObjects(mousePos.x, mousePos.y);
   }
   game.deinit();
+  CloseAudioDevice();
   CloseWindow();
   return 0;
 }
