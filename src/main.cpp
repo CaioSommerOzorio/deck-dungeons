@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <iostream>
 #include <cstddef>
+#include <random>
 #include <string>
 #include <vector>
 #include <thread>
@@ -63,6 +64,8 @@ enum class Actions {
   DAMAGE_ADJACENT,
   DEFEND,
   PARRY,
+  QUICK_DRAW,
+  AIM,
   BURN,
   FREEZE,
   COUNT
@@ -74,10 +77,12 @@ std::array<std::string, static_cast<int>(Actions::COUNT)> actionDescriptions = {
   "move backwards by X",
   "turn left",
   "turn right",
-  "damage an enemy in front",
-  "damage an enemy adjacent",
+  "deal X damage to an enemy in front",
+  "deal X damage to an enemy adjacent",
   "you do not take damage for X turns",
-  "deal X damage to an enemy that attacked you",
+  "deal X damage to enemies that attacked you",
+  "deal X damage to all enemies in front of you",
+  "change direction and deal X damage to an enemy in front",
   "deal X burn damage to an enemy in front",
   "the enemy in front of you is frozen for X turns"
 };
@@ -86,6 +91,28 @@ typedef struct cardAction {
   Actions action;
   int value;
 } cardAction;
+
+std::unordered_map<Actions, Texture2D> actionTextures;
+
+std::unordered_map<std::string, std::vector<cardAction>> cardActions = {
+  // movement
+  {"walk", {{Actions::MOVE_CHOICE, 1}}},
+  {"run", {{Actions::MOVE_FORWARD, 2}}},
+  {"dodge", {{Actions::MOVE_BACKWARD, 2}}},
+  {"right turn", {{Actions::TURN_RIGHT, 1}, {Actions::MOVE_FORWARD, 1}}},
+  {"left turn", {{Actions::TURN_LEFT, 1}, {Actions::MOVE_FORWARD, 1}}},
+  // melee
+  {"stab", {{Actions::DAMAGE_FRONT, 2}}},
+  {"slash", {{Actions::DAMAGE_ADJACENT, 1}}},
+  {"defend", {{Actions::DEFEND, 2}}},
+  {"parry", {{Actions::PARRY, 1}}},
+  // ranged
+  {"quick draw", {{Actions::QUICK_DRAW, 1}}},
+  {"aim", {{Actions::AIM, 1}}},
+  // potions
+  {"burn", {{Actions::BURN, 1}}},
+  {"freeze", {{Actions::FREEZE, 1}}}
+};
 
 
 class uiElement {
@@ -176,30 +203,6 @@ class Card {
 public:
   Texture2D texture = textures["scroll"];
 
-  Texture2D top_left      = LoadTexture("assets/ui/sizeable_scroll/top_left.png");
-  Texture2D middle_left   = LoadTexture("assets/ui/sizeable_scroll/middle_left.png");
-  Texture2D bottom_left   = LoadTexture("assets/ui/sizeable_scroll/bottom_left.png");
-  Texture2D top_middle    = LoadTexture("assets/ui/sizeable_scroll/top_middle.png");
-  Texture2D middle_middle = LoadTexture("assets/ui/sizeable_scroll/middle_middle.png");
-  Texture2D bottom_middle = LoadTexture("assets/ui/sizeable_scroll/bottom_middle.png");
-  Texture2D top_right     = LoadTexture("assets/ui/sizeable_scroll/top_right.png");
-  Texture2D middle_right  = LoadTexture("assets/ui/sizeable_scroll/middle_right.png");
-  Texture2D bottom_right  = LoadTexture("assets/ui/sizeable_scroll/bottom_right.png");
-
-  std::array<Texture2D, static_cast<int>(Actions::COUNT)> actionTextures = {
-    textures["move_scroll"],   // "move in any chosen direction by X",
-    textures["move_scroll"],   // "move forwards by X",
-    textures["move_scroll"],   // "move backwards by X",
-    textures["move_scroll"],   // "turn left",
-    textures["move_scroll"],   // "turn right",
-    textures["melee_scroll"],  // "damage an enemy in front",
-    textures["melee_scroll"],  // "damage an enemy adjacent",
-    textures["defend_scroll"], // "you do not take damage for X turns",
-    textures["defend_scroll"], // "deal X damage to an enemy that attacked you",
-    textures["potion_scroll"], // "deal X burn damage to an enemy in front",
-    textures["potion_scroll"], // "the enemy in front of you is frozen for X turns"
-  };
-
   int width = 64;
   int height = 95;
   int rotation = 0;
@@ -207,6 +210,14 @@ public:
   int x = 0;
 
   std::vector<cardAction> actions;
+
+  Card(std::string cardName = "") {
+    if (cardName != "") {
+      for (int i = 0; i < cardActions[cardName].size(); i++) {
+        actions.push_back(cardActions[cardName][i]);
+      }
+    }
+  }
 
   void addAction(cardAction action) {
     actions.push_back(action);
@@ -223,12 +234,12 @@ public:
     );
 
     for (int i = 0; i < actions.size(); i++) {
-      int actionIndex = static_cast<int>(actions.at(i).action);
+      Texture2D actionTexture = actionTextures[actions.at(i).action];
       int yOffset = texture.height / (actions.size() + 1) - 16;
       DrawTexturePro(
-        actionTextures[actionIndex],
-        {0, 0, (float)actionTextures[actionIndex].width, (float)actionTextures[actionIndex].height},
-        {xrel(x + (texture.width / 2)), yrel(y + yOffset), xrel(16), yrel(16)},
+        actionTexture,
+        {0, 0, (float)actionTexture.width, (float)actionTexture.height},
+        {xrel(x + (texture.width / 2) - 8), yrel(y + yOffset), xrel(16), yrel(16)},
         {0, 0}, 0, WHITE
       );
     }
@@ -337,6 +348,7 @@ public:
   Text dealText{"deal 1/5", 403, 127};
   Text lookText{"look 1 turn", 403, 147};
 
+  std::random_device rd;
 
   int turnCount;
 
@@ -360,12 +372,44 @@ public:
     text.push_back(lookText);
 
     // make deck
-    deckList.push_back(Card());
-    deckList.back().addAction({Actions::MOVE_FORWARD, 1});
-    deckList.push_back(Card());
-    deckList.back().addAction({Actions::MOVE_BACKWARD, 2});
-    deckList.push_back(Card());
-    deckList.back().addAction({Actions::TURN_LEFT, 0});
+    for (int i = 0; i < 5; i++) {
+      deckList.push_back(Card("walk"));
+    }
+    for (int i = 0; i < 4; i++) {
+      deckList.push_back(Card("run"));
+    }
+    for (int i = 0; i < 2; i++) {
+      deckList.push_back(Card("dodge"));
+    }
+    for (int i = 0; i < 2; i++) {
+      deckList.push_back(Card("turn right"));
+    }
+    for (int i = 0; i < 2; i++) {
+      deckList.push_back(Card("turn left"));
+    }
+    for (int i = 0; i < 3; i++) {
+      deckList.push_back(Card("stab"));
+    }
+    for (int i = 0; i < 3; i++) {
+      deckList.push_back(Card("slash"));
+    }
+    for (int i = 0; i < 2; i++) {
+      deckList.push_back(Card("defend"));
+    }
+    for (int i = 0; i < 3; i++) {
+      deckList.push_back(Card("quick draw"));
+    }
+    for (int i = 0; i < 3; i++) {
+      deckList.push_back(Card("aim"));
+    }
+    deckList.push_back(Card("parry"));
+    std::cout << deckList.size() << std::endl;
+    shuffleDeck();
+  }
+
+  void shuffleDeck() {
+    std::mt19937 g(rd());
+    std::shuffle(deckList.begin(), deckList.end(), g);
   }
 
   void drawObjects(float x, float y) {
@@ -516,6 +560,22 @@ int main (void) {
     {"frame", LoadTexture("assets/ui/frame.png")},
     {"screen", LoadTexture("assets/ui/screen.png")},
     {"deck", LoadTexture("assets/ui/scroll_deck.png")}
+  };
+
+  actionTextures = {
+    {Actions::MOVE_CHOICE, textures["move_scroll"]},
+    {Actions::MOVE_FORWARD, textures["move_scroll"]},
+    {Actions::MOVE_BACKWARD, textures["move_scroll"]},
+    {Actions::TURN_LEFT, textures["move_scroll"]},
+    {Actions::TURN_RIGHT, textures["move_scroll"]},
+    {Actions::DAMAGE_FRONT, textures["melee_scroll"]},
+    {Actions::DAMAGE_ADJACENT, textures["melee_scroll"]},
+    {Actions::DEFEND, textures["defend_scroll"]},
+    {Actions::PARRY, textures["defend_scroll"]},
+    {Actions::QUICK_DRAW, textures["ranged_scroll"]},
+    {Actions::AIM, textures["ranged_scroll"]},
+    {Actions::BURN, textures["ranged_scroll"]},
+    {Actions::FREEZE, textures["potion_scroll"]}
   };
 
   // init font textures
