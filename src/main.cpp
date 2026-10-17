@@ -161,8 +161,6 @@ public:
     int line = 0;
     int increment = 0;
 
-    std::cout << text << std::endl;
-
     for (int i = 0; i < text.length(); i++) {
       char c = text[i];
 
@@ -461,18 +459,18 @@ public:
     if (deckList.size() == 0) {
       return;
     }
+    else if (hand.size() == 7) {
+      return;
+    }
     hand.push_back(deckList.at(deckList.size()-1));
     hand.back().x = 480 - (hand.back().width * (hand.size()));
     deckList.pop_back();
+    this->deckSize = deckList.size();
   }
 
   void click(float x, float y) {
     if (CheckCollisionPointRec({x, y}, {xrel(ui.at(4).x), yrel(ui.at(4).y), xrel(ui.at(4).width), yrel(ui.at(4).height)})) {
       drawCard();
-      passTurn();
-    }
-    else if (CheckCollisionPointRec({x, y}, {xrel(ui.at(5).x), yrel(ui.at(5).y), xrel(ui.at(5).width), yrel(ui.at(5).height)})) {
-      // Will add look functionality later
       passTurn();
     }
     for (int i = 0; i < hand.size(); i++) {
@@ -496,6 +494,10 @@ public:
     turnCount += 1;
     int dealCount = turnCount % 5 + 1;
     text.at(1).text = "deal " + std::to_string(dealCount) + "/5";
+    if (dealCount == 1)
+      while (hand.size() < 7) {
+        drawCard();
+      }
   }
 };
 
