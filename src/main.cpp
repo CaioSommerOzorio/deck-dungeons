@@ -242,7 +242,8 @@ public:
 
     for (int i = 0; i < actions.size(); i++) {
       Texture2D actionTexture = actionTextures[actions.at(i).action];
-      int yOffset = texture.height / (actions.size() + 1) - 16;
+      float spacing = (float)texture.height / (actions.size() + 1);
+      float yOffset = spacing * (i + 1) - 16;
       DrawTexturePro(
         actionTexture,
         {0, 0, (float)actionTexture.width, (float)actionTexture.height},
@@ -350,6 +351,7 @@ public:
   std::vector<Card> deckList;
   std::vector<uiElement> ui;
   std::vector<Text> text;
+  std::vector<uiElement> minimap;
 
   uiElement screen{"screen", 0, 0, 0, 480, 300};
   uiElement dungeon{"mystery_dungeon", 56, 8, 0, 288, 144};
@@ -369,10 +371,11 @@ public:
 
   int turnCount;
   int deckSize;
+  int hearts;
 
   void init(void) {
     PlaySound(mystery_soundtrack);
-    turnCount = 0;
+    this->turnCount = 0;
 
     ui.push_back(screen);
     ui.push_back(dungeon);
@@ -392,41 +395,28 @@ public:
     text.push_back(deckCount);
 
     // make deck
-    for (int i = 0; i < 5; i++) {
-      deckList.push_back(Card("walk"));
-    }
-    for (int i = 0; i < 4; i++) {
-      deckList.push_back(Card("run"));
-    }
-    for (int i = 0; i < 2; i++) {
-      deckList.push_back(Card("dodge"));
-    }
-    for (int i = 0; i < 2; i++) {
-      deckList.push_back(Card("turn right"));
-    }
-    for (int i = 0; i < 2; i++) {
-      deckList.push_back(Card("turn left"));
-    }
-    for (int i = 0; i < 3; i++) {
-      deckList.push_back(Card("stab"));
-    }
-    for (int i = 0; i < 3; i++) {
-      deckList.push_back(Card("slash"));
-    }
-    for (int i = 0; i < 2; i++) {
-      deckList.push_back(Card("defend"));
-    }
-    for (int i = 0; i < 3; i++) {
-      deckList.push_back(Card("quick draw"));
-    }
-    for (int i = 0; i < 3; i++) {
-      deckList.push_back(Card("aim"));
-    }
-    deckList.push_back(Card("parry"));
+    addCards("walk", 5);
+    addCards("run", 4);
+    addCards("dodge", 2);
+    addCards("turn right", 2);
+    addCards("turn left", 2);
+    addCards("stab", 3);
+    addCards("slash", 3);
+    addCards("defend", 2);
+    addCards("parry", 1);
+    addCards("quick draw", 3);
+    addCards("aim", 3);
+
     this->deckSize = deckList.size();
     std::string deckString = "deck: " + std::to_string(this->deckSize) + "/" + std::to_string(this->deckSize);
     text.at(3).text = deckString;
     shuffleDeck();
+  }
+
+  void addCards(std::string card, int amount) {
+    for (int i = 0; i < amount; i++) {
+      deckList.push_back(Card(card));
+    }
   }
 
   void shuffleDeck() {
@@ -556,6 +546,12 @@ int main (void) {
   textures = {
     {"mystery_dungeon", LoadTexture("assets/dungeons/mystery_dungeon.png")},
 
+    // Mini map
+    {"room map", LoadTexture("assets/minimap/room.png")},
+    {"connection map", LoadTexture("assets/minimap/connection.png")},
+    {"enemy map", LoadTexture("assets/minimap/enemy.png")},
+    {"plauer map", LoadTexture("assets/minimap/player.png")},
+
     // Card related
     {"scroll", LoadTexture("assets/ui/scroll.png")},
 
@@ -569,7 +565,8 @@ int main (void) {
     {"potion_scroll", LoadTexture("assets/scroll_icons/potion_scroll.png")},
     {"ranged_scroll", LoadTexture("assets/scroll_icons/ranged_scroll.png")},
     {"spell_scroll", LoadTexture("assets/scroll_icons/spell_scroll.png")},
-    {"turn_scroll", LoadTexture("assets/scroll_icons/turn_scroll.png")},
+    {"turn_left_scroll", LoadTexture("assets/scroll_icons/turn_scroll.png")},
+    {"turn_right_scroll", LoadTexture("assets/scroll_icons/turn_scroll.png")},
 
     {"top_left", LoadTexture("assets/ui/sizeable_scroll/top_left.png")},
     {"middle_left", LoadTexture("assets/ui/sizeable_scroll/middle_left.png")},
@@ -601,8 +598,8 @@ int main (void) {
     {Actions::MOVE_CHOICE, textures["move_scroll"]},
     {Actions::MOVE_FORWARD, textures["move_scroll"]},
     {Actions::MOVE_BACKWARD, textures["move_scroll"]},
-    {Actions::TURN_LEFT, textures["move_scroll"]},
-    {Actions::TURN_RIGHT, textures["move_scroll"]},
+    {Actions::TURN_LEFT, textures["turn_left_scroll"]},
+    {Actions::TURN_RIGHT, textures["turn_right_scroll"]},
     {Actions::DAMAGE_FRONT, textures["melee_scroll"]},
     {Actions::DAMAGE_ADJACENT, textures["melee_scroll"]},
     {Actions::DEFEND, textures["defend_scroll"]},
