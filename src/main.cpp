@@ -351,7 +351,7 @@ public:
   void draw(int playerx, int playery) {
     // no need to draw if not visible in minimap
     // also no need to draw if we are drawing the player arrow
-    if (x - plauyerx < 2 || y - playery < 2 || (playerx == x && playery == y)) {
+    if (x - playerx < 2 || y - playery < 2 || (playerx == x && playery == y)) {
       return;
     }
 
@@ -476,8 +476,8 @@ public:
     addCards("quick draw", 3);
     addCards("aim", 3);
 
-    player.deckSize = deckList.size();
-    std::string deckString = "deck: " + std::to_string(this->deckSize) + "/" + std::to_string(this->deckSize);
+    player.deckSize = player.deck.size();
+    std::string deckString = "deck: " + std::to_string(player.deckSize) + "/" + std::to_string(player.deckSize);
     text.at(3).text = deckString;
     shuffleDeck();
   }
@@ -494,7 +494,7 @@ public:
 
   void shuffleDeck() {
     std::mt19937 g(rd());
-    std::shuffle(player.deck.begin(), deck.end(), g);
+    std::shuffle(player.deck.begin(), player.deck.end(), g);
   }
 
   void drawObjects(float x, float y) {
@@ -503,10 +503,10 @@ public:
     for (int i = 0; i < ui.size(); i++) {
       ui.at(i).draw();
     }
-    for (int i = 0; i < hand.size(); i++) {
-      hand.at(i).draw();
-      if (CheckCollisionPointRec({x, y}, {xrel(hand.at(i).x), yrel(hand.at(i).y), xrel(hand.at(i).width), yrel(hand.at(i).height)})) {
-        hand.at(i).hover();
+    for (int i = 0; i < player.hand.size(); i++) {
+      player.hand.at(i).draw();
+      if (CheckCollisionPointRec({x, y}, {xrel(player.hand.at(i).x), yrel(player.hand.at(i).y), xrel(player.hand.at(i).width), yrel(player.hand.at(i).height)})) {
+        player.hand.at(i).hover();
       }
     }
     text.at(3).text = "deck: " + std::to_string(player.deck.size()) + "/" + std::to_string(player.deckSize);
@@ -534,14 +534,14 @@ public:
   }
 
   void drawCard() {
-    if (deckList.size() == 0) {
+    if (player.deck.size() == 0) {
       return;
     }
-    else if (hand.size() == 7) {
+    else if (player.hand.size() == 7) {
       return;
     }
-    player.deck.push_back(deckList.at(deckList.size()-1));
-    player.deck.back().x = 480 - (player.deck.back().width * (player.deck.size()));
+    player.hand.push_back(player.deck.at(player.deck.size()-1));
+    player.hand.back().x = 480 - (player.hand.back().width * (player.hand.size()));
     player.deck.pop_back();
   }
 
@@ -550,7 +550,7 @@ public:
       drawCard();
       passTurn();
     }
-    for (int i = 0; i < hand.size(); i++) {
+    for (int i = 0; i < player.hand.size(); i++) {
       if (CheckCollisionPointRec({x, y}, {xrel(player.hand.at(i).x), yrel(player.hand.at(i).y), xrel(player.hand.at(i).width), yrel(player.hand.at(i).height)})) {
         player.hand.at(i).use(*this);
         return;
@@ -576,7 +576,7 @@ public:
     int dealCount = turnCount % 5 + 1;
     text.at(1).text = "deal " + std::to_string(dealCount) + "/5";
     if (dealCount == 1)
-      while (hand.size() < 7) {
+      while (player.hand.size() < 7) {
         drawCard();
       }
   }
