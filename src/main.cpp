@@ -342,16 +342,84 @@ public:
   void use(Game& game);
 };
 
+class Encounter {
+public:
+  int x, y;
+  Texture2D texture;
+  virtual ~Encounter() {}
+
+  void draw(int playerx, int playery) {
+    // no need to draw if not visible in minimap
+    // also no need to draw if we are drawing the player arrow
+    if (x - plauyerx < 2 || y - playery < 2 || (playerx == x && playery == y)) {
+      return;
+    }
+
+    int drawx = 416;
+    int drawy = 43;
+
+    if (x < playerx) {
+      drawx += 24;
+    }
+    else if (x > playerx) {
+      drawx -= 24;
+    }
+
+    if (y < playery) {
+      drawy += 24;
+    }
+    else if (y > playery) {
+      drawy -= 24;
+    }
+
+    DrawTexturePro(
+      texture,
+      {0, 0, (float)texture.width, (float)texture.height},
+      {xrel(drawx), yrel(drawy), xrel(texture.width), yrel(texture.height)},
+      {0, 0},
+      0,
+      WHITE
+    );
+  }
+};
+
+class Enemy : public Encounter {
+public:
+  std::string type;
+  int hp;
+  int attack;
+  int x, y;
+  Texture2D mapIcon;
+  Texture2D texture;
+
+  Enemy(int hp, int attack, int x, int y) {
+    mapIcon = textures["enemy map"];
+    this->hp = hp;
+    this->attack = attack;
+    this->x = x;
+    this->y = y;
+  }
+};
+
+class Player {
+public:
+  int x, y;
+  int deckSize;
+  int hearts;
+  std::vector<Card> hand;
+  std::vector<Card> deck;
+  std::vector<Card> discard;
+};
+
 class Game {
 public:
   // TEMPORARY will only load when needed
   Sound mystery_soundtrack = LoadSound("soundtrack/mystery_dungeon.mp3");
 
-  std::vector<Card> hand;
-  std::vector<Card> deckList;
   std::vector<uiElement> ui;
   std::vector<Text> text;
   std::vector<uiElement> minimap;
+  Player player;
 
   uiElement screen{"screen", 0, 0, 0, 480, 300};
   uiElement dungeon{"mystery_dungeon", 56, 8, 0, 288, 144};
@@ -368,23 +436,24 @@ public:
   Text deckCount{"deck: X/Y", 340, 189};
 
   std::random_device rd;
+  std::vector<Encounter> map;
 
   int turnCount;
-  int deckSize;
-  int hearts;
 
   void init(void) {
     PlaySound(mystery_soundtrack);
-    this->turnCount = 0;
+    turnCount = 0;
 
     ui.push_back(screen);
     ui.push_back(dungeon);
     ui.push_back(frame);
     ui.push_back(deck);
+
     for (int i = 0; i < 3; i++) {
       ui.push_back(actionBar);
       ui.back().y = 102 + 20 * i;
     }
+
     ui.push_back(drawIcon);
     ui.push_back(dealIcon);
     ui.push_back(lookIcon);
@@ -407,21 +476,25 @@ public:
     addCards("quick draw", 3);
     addCards("aim", 3);
 
-    this->deckSize = deckList.size();
+    player.deckSize = deckList.size();
     std::string deckString = "deck: " + std::to_string(this->deckSize) + "/" + std::to_string(this->deckSize);
     text.at(3).text = deckString;
     shuffleDeck();
   }
 
+  void createMap(int sizex, int sizey) {
+
+  }
+
   void addCards(std::string card, int amount) {
     for (int i = 0; i < amount; i++) {
-      deckList.push_back(Card(card));
+      player.deck.push_back(Card(card));
     }
   }
 
   void shuffleDeck() {
     std::mt19937 g(rd());
-    std::shuffle(deckList.begin(), deckList.end(), g);
+    std::shuffle(player.deck.begin(), deck.end(), g);
   }
 
   void drawObjects(float x, float y) {
@@ -436,7 +509,7 @@ public:
         hand.at(i).hover();
       }
     }
-    text.at(3).text = "deck: " + std::to_string(this->deckList.size()) + "/" + std::to_string(this->deckSize);
+    text.at(3).text = "deck: " + std::to_string(player.deck.size()) + "/" + std::to_string(player.deckSize);
     for (int i = 0; i < text.size(); i++) {
       text.at(i).draw();
     }
@@ -467,9 +540,9 @@ public:
     else if (hand.size() == 7) {
       return;
     }
-    hand.push_back(deckList.at(deckList.size()-1));
-    hand.back().x = 480 - (hand.back().width * (hand.size()));
-    deckList.pop_back();
+    player.deck.push_back(deckList.at(deckList.size()-1));
+    player.deck.back().x = 480 - (player.deck.back().width * (player.deck.size()));
+    player.deck.pop_back();
   }
 
   void click(float x, float y) {
@@ -478,22 +551,22 @@ public:
       passTurn();
     }
     for (int i = 0; i < hand.size(); i++) {
-      if (CheckCollisionPointRec({x, y}, {xrel(hand.at(i).x), yrel(hand.at(i).y), xrel(hand.at(i).width), yrel(hand.at(i).height)})) {
-        hand.at(i).use(*this);
+      if (CheckCollisionPointRec({x, y}, {xrel(player.hand.at(i).x), yrel(player.hand.at(i).y), xrel(player.hand.at(i).width), yrel(player.hand.at(i).height)})) {
+        player.hand.at(i).use(*this);
         return;
       }
     }
   }
 
   void discard(Card* card) {
-    for (int i = 0; i < hand.size(); i++) {
-      if (&hand[i] == card) {
-        hand.erase(hand.begin()+i);
+    for (int i = 0; i < player.hand.size(); i++) {
+      if (&player.hand[i] == card) {
+        player.hand.erase(player.hand.begin()+i);
         break;
       }
     }
-    for (int i = 0; i < hand.size(); i++) {
-      hand.at(i).x = 480 - (hand.at(i).width * (i + 1));
+    for (int i = 0; i < player.hand.size(); i++) {
+      player.hand.at(i).x = 480 - (player.hand.at(i).width * (i + 1));
     }
     std::cout << "card discarded" << std::endl;
   }
@@ -550,7 +623,8 @@ int main (void) {
     {"room map", LoadTexture("assets/minimap/room.png")},
     {"connection map", LoadTexture("assets/minimap/connection.png")},
     {"enemy map", LoadTexture("assets/minimap/enemy.png")},
-    {"plauer map", LoadTexture("assets/minimap/player.png")},
+    {"player map", LoadTexture("assets/minimap/player.png")},
+    {"bomb map", LoadTexture("assets/minimap/bomb.png")},
 
     // Card related
     {"scroll", LoadTexture("assets/ui/scroll.png")},
