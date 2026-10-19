@@ -342,6 +342,7 @@ public:
   void use(Game& game);
 };
 
+
 class Encounter {
 public:
   int x, y;
@@ -411,6 +412,53 @@ public:
   std::vector<Card> discard;
 };
 
+class Room {
+public:
+  int x, y;
+  bool exists;
+  Texture2D texture;
+  std::vector<Encounter> encounters;
+
+  Room(bool exists) {
+    this->exists = exists;
+    texture = LoadTexture("assets/minimap/room.png");
+  }
+
+  void draw(int playerx, int playery) {
+    if (exists && (playerx - x < 2 || playery - y < 2)) {
+      int drawx = 414;
+      int drawy = 41;
+
+      if (x < playerx) {
+        drawx += 24;
+      }
+      else if (x > playerx) {
+        drawx -= 24;
+      }
+
+      if (y < playery) {
+        drawy += 24;
+      }
+      else if (y > playery) {
+        drawy -= 24;
+      }
+
+      DrawTexturePro(
+        texture,
+        {0, 0, (float)texture.width, (float)texture.height},
+        {xrel(drawx), yrel(drawy), xrel(texture.width), yrel(texture.height)},
+        {0, 0},
+        0,
+        WHITE
+      );
+
+      if (encounters.size() > 0) {
+        encounters.at(0).draw(playerx, playery);
+      }
+    }
+  }
+};
+
 class Game {
 public:
   // TEMPORARY will only load when needed
@@ -418,7 +466,7 @@ public:
 
   std::vector<uiElement> ui;
   std::vector<Text> text;
-  std::vector<uiElement> minimap;
+  std::vector<std::vector<Room>> map;
   Player player;
 
   uiElement screen{"screen", 0, 0, 0, 480, 300};
@@ -436,7 +484,7 @@ public:
   Text deckCount{"deck: X/Y", 340, 189};
 
   std::random_device rd;
-  std::vector<Encounter> map;
+  std::mt19937 g{rd()};
 
   int turnCount;
 
@@ -480,10 +528,138 @@ public:
     std::string deckString = "deck: " + std::to_string(player.deckSize) + "/" + std::to_string(player.deckSize);
     text.at(3).text = deckString;
     shuffleDeck();
+
+    genMap(10, 10);
   }
 
-  void createMap(int sizex, int sizey) {
+  int findNeighbours(int x, int y) {
+    int neighbours = 0;
 
+    if (x > 0) {
+      if (map.at(x-1).at(y).exists) {
+        neighbours += 1;
+      }
+    }
+    if (x < map.size() - 1) {
+      if (map.at(x+1).at(y).exists) {
+        neighbours += 1;
+      }
+    }
+    if (y > 0) {
+      if (map.at(x).at(y-1).exists) {
+        neighbours += 1;
+      }
+    }
+    if (y < map.size() - 1) {
+      if (map.at(x).at(y+1).exists) {
+        neighbours += 1;
+      }
+    }
+
+    return neighbours;
+  }
+
+  void spawnRoomAround(int y, int x) {
+    std::vector<int> directions;
+    // 0: up, 1: right, 2: down, 3: left
+    if (y > 0) {
+      if (!map.at(y-1).at(x).exists) {
+        directions.push_back(3);
+      }
+    }
+    if (y < map.size() - 1) {
+      if (!map.at(y+1).at(x).exists) {
+        directions.push_back(1);
+      }
+    }
+    if (x > 0) {
+      if (!map.at(y).at(x-1).exists) {
+        directions.push_back(0);
+      }
+    }
+    if (x < map.size() - 1) {
+      if (!map.at(y).at(x+1).exists) {
+        directions.push_back(2);
+      }
+    }
+    std::uniform_int_distribution<int> dist(0, directions.size() - 1);
+    int randomDir = directions.at(dist(g));
+    switch (randomDir) {
+      case 0:
+        map.at(y).at(x-1).exists = true;
+        map.at(y).at(x-1).x = x-1;
+        map.at(y).at(x-1).y = y;
+        break;
+      case 1:
+        map.at(y+1).at(x).exists = true;
+        map.at(y+1).at(x).x = x;
+        map.at(y+1).at(x).y = y+1;
+        break;
+      case 2:
+        map.at(y).at(x+1).exists = true;
+        map.at(y).at(x+1).x = x+1;
+        map.at(y).at(x+1).y = y;
+        break;
+      case 3:
+        map.at(y-1).at(x).exists = true;
+        map.at(y-1).at(x).x = x;
+        map.at(y-1).at(x).y = y-1;
+        break;
+    }
+  }
+
+  std::vector<int> getRandomRoom() {
+    std::vector<std::vector<int>> roomCoords;
+    for (int i = 0; i < map.size(); i++) {
+      for (int j = 0; j < map.at(i).size(); j++) {
+        if (map.at(i).at(j).exists) {
+          roomCoords.push_back({i, j});
+        }
+      }
+    }
+    std::uniform_int_distribution<int> dist(0, roomCoords.size() - 1);
+    return roomCoords.at(dist(g));
+  }
+
+  void genMap(int sizex, int sizey) {
+    for (int i = 0; i < sizey; i++) {
+      std::vector<Room> row;
+      for (int j = 0; j < sizex; j++) {
+        row.push_back(Room(false));
+      }
+      map.push_back(row);
+    }
+
+    player.x = sizex / 2;
+    player.y = sizey / 2;
+    map.at(player.y).at(player.x).exists = true;
+    map.at(player.y).at(player.x).x = player.x;
+    map.at(player.y).at(player.x).y = player.y;
+    // generate map from middle
+    int maxRooms = (sizex * sizey) / 3;
+    int rooms = 0;
+    int px = player.x;
+    int py = player.y;
+    while (rooms < maxRooms) {
+      if (findNeighbours(px, py) < 3) {
+        spawnRoomAround(px, py);
+        rooms += 1;
+      }
+      std::vector<int> roomCoords = getRandomRoom();
+      px = roomCoords.at(0);
+      py = roomCoords.at(1);
+    }
+    for (int i = 0; i < map.size(); i++) {
+      for (int j = 0; j < map.at(i).size(); j++) {
+        if (map.at(i).at(j).exists) {
+          std::cout << "@";
+        }
+        else {
+          std::cout << " ";
+        }
+      }
+      std::cout << std::endl;
+    }
   }
 
   void addCards(std::string card, int amount) {
@@ -493,7 +669,6 @@ public:
   }
 
   void shuffleDeck() {
-    std::mt19937 g(rd());
     std::shuffle(player.deck.begin(), player.deck.end(), g);
   }
 
@@ -512,6 +687,13 @@ public:
     text.at(3).text = "deck: " + std::to_string(player.deck.size()) + "/" + std::to_string(player.deckSize);
     for (int i = 0; i < text.size(); i++) {
       text.at(i).draw();
+    }
+    for (int i = 0; i < map.size(); i++) {
+      for (int j = 0; j < map.at(i).size(); j++) {
+        if (map.at(i).at(j).exists) {
+          map.at(i).at(j).draw(player.x, player.y);
+        }
+      }
     }
 
     // draw cursor
@@ -606,7 +788,7 @@ void Card::use(Game& game) {
 };
 
 int main (void) {
-  //SetTraceLogLevel(LOG_NONE);
+  SetTraceLogLevel(LOG_NONE);
   const float screenWidth = WIDTH;
   const float screenHeight = HEIGHT;
 
