@@ -559,53 +559,88 @@ public:
     return neighbours;
   }
 
-  void spawnRoomAround(int y, int x) {
+  int spawnRoomAround(int y, int x) {
     std::vector<int> directions;
     // 0: up, 1: right, 2: down, 3: left
-    if (y > 0) {
-      if (!map.at(y-1).at(x).exists) {
-        directions.push_back(3);
+    if (y > 0 && !map.at(y-1).at(x).exists) {
+      directions.push_back(0);
+    }
+
+    if (x < map.at(y).size() - 1 && !map.at(y).at(x + 1).exists) {
+      directions.push_back(1);
+    }
+
+    if (y < map.size() - 1 && !map.at(y + 1).at(x).exists) {
+      directions.push_back(2);
+    }
+
+    if (x > 0 && !map.at(y).at(x - 1).exists) {
+      directions.push_back(3);
+    }
+
+    if (directions.empty()) {
+      return 0;
+    }
+
+    int centreX = map.at(0).size() / 2;
+    int centreY = map.size() / 2;
+
+    int xdist = x - centreX;
+    int ydist = y - centreY;
+
+    int closestDirToCenter;
+
+    if (std::abs(xdist) > std::abs(ydist)) {
+      closestDirToCenter = (xdist > 0) ? 3 : 1;
+    }
+    else {
+      closestDirToCenter = (ydist > 0) ? 0 : 2;
+    }
+
+    std::vector<int> candidates;
+
+    for (int dir : directions) {
+      if (dir != closestDirToCenter) {
+        candidates.push_back(dir);
       }
     }
-    if (y < map.size() - 1) {
-      if (!map.at(y+1).at(x).exists) {
-        directions.push_back(1);
-      }
+
+    // if no alternatives exist, allow the original directions
+    if (candidates.empty()) {
+      candidates = directions;
     }
-    if (x > 0) {
-      if (!map.at(y).at(x-1).exists) {
-        directions.push_back(0);
-      }
-    }
-    if (x < map.size() - 1) {
-      if (!map.at(y).at(x+1).exists) {
-        directions.push_back(2);
-      }
-    }
-    std::uniform_int_distribution<int> dist(0, directions.size() - 1);
-    int randomDir = directions.at(dist(g));
+
+    std::uniform_int_distribution<std::size_t> dist(0, candidates.size() - 1);
+
+    int randomDir = candidates.at(dist(g));
+
+    // spawn the room
     switch (randomDir) {
-      case 0:
-        map.at(y).at(x-1).exists = true;
-        map.at(y).at(x-1).x = x-1;
-        map.at(y).at(x-1).y = y;
-        break;
-      case 1:
-        map.at(y+1).at(x).exists = true;
-        map.at(y+1).at(x).x = x;
-        map.at(y+1).at(x).y = y+1;
-        break;
-      case 2:
-        map.at(y).at(x+1).exists = true;
-        map.at(y).at(x+1).x = x+1;
-        map.at(y).at(x+1).y = y;
-        break;
-      case 3:
-        map.at(y-1).at(x).exists = true;
-        map.at(y-1).at(x).x = x;
-        map.at(y-1).at(x).y = y-1;
-        break;
+        case 0:
+          map.at(y - 1).at(x).exists = true;
+          map.at(y - 1).at(x).x = x;
+          map.at(y - 1).at(x).y = y - 1;
+          break;
+
+        case 1:
+          map.at(y).at(x + 1).exists = true;
+          map.at(y).at(x + 1).x = x + 1;
+          map.at(y).at(x + 1).y = y;
+          break;
+
+        case 2:
+          map.at(y + 1).at(x).exists = true;
+          map.at(y + 1).at(x).x = x;
+          map.at(y + 1).at(x).y = y + 1;
+          break;
+
+        case 3:
+          map.at(y).at(x - 1).exists = true;
+          map.at(y).at(x - 1).x = x - 1;
+          map.at(y).at(x - 1).y = y;
+          break;
     }
+    return 1;
   }
 
   std::vector<int> getRandomRoom() {
@@ -642,8 +677,7 @@ public:
     int py = player.y;
     while (rooms < maxRooms) {
       if (findNeighbours(px, py) < 3) {
-        spawnRoomAround(px, py);
-        rooms += 1;
+        rooms += spawnRoomAround(px, py);
       }
       std::vector<int> roomCoords = getRandomRoom();
       px = roomCoords.at(0);
