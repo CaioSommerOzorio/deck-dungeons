@@ -421,26 +421,26 @@ public:
 
   Room(bool exists) {
     this->exists = exists;
-    texture = LoadTexture("assets/minimap/room.png");
+    this->texture = textures["room map"];
   }
 
-  void draw(int playerx, int playery) {
-    if (exists && (playerx - x < 2 || playery - y < 2)) {
+  void draw(int playerx, int playery, std::vector<std::vector<Room>> map) {
+    if (exists && (abs(playerx - x) < 2 && abs(playery - y) < 2)) {
       int drawx = 414;
       int drawy = 41;
 
       if (x < playerx) {
-        drawx += 24;
+        drawx -= 23;
       }
       else if (x > playerx) {
-        drawx -= 24;
+        drawx += 23;
       }
 
       if (y < playery) {
-        drawy += 24;
+        drawy -= 23;
       }
       else if (y > playery) {
-        drawy -= 24;
+        drawy += 23;
       }
 
       DrawTexturePro(
@@ -452,6 +452,59 @@ public:
         WHITE
       );
 
+      Texture2D connectionHorizontal = textures["connection horizontal"];
+      Texture2D connectionVertical = textures["connection vertical"];
+
+      if (x != 0) {
+        if (map.at(y).at(x - 1).exists) {
+          DrawTexturePro(
+            connectionHorizontal,
+            {0, 0, (float)connectionHorizontal.width, (float)connectionHorizontal.height},
+            {xrel(drawx-4), yrel(drawy+7), xrel(connectionHorizontal.width), yrel(connectionHorizontal.height)},
+            {0, 0},
+            0,
+            WHITE
+          );
+        }
+      }
+      if (x != map.at(0).size() - 1) {
+        if (map.at(y).at(x + 1).exists) {
+          DrawTexturePro(
+            connectionHorizontal,
+            {0, 0, (float)connectionHorizontal.width, (float)connectionHorizontal.height},
+            {xrel(drawx+19), yrel(drawy+7), xrel(connectionHorizontal.width), yrel(connectionHorizontal.height)},
+            {0, 0},
+            0,
+            WHITE
+          );
+        }
+      }
+
+      if (y != 0) {
+        if (map.at(y - 1).at(x).exists) {
+          DrawTexturePro(
+            connectionVertical,
+            {0, 0, (float)connectionVertical.width, (float)connectionVertical.height},
+            {xrel(drawx+7), yrel(drawy-4), xrel(connectionVertical.width), yrel(connectionVertical.height)},
+            {0, 0},
+            0,
+            WHITE
+          );
+        }
+      }
+      if (y != map.size() - 1) {
+        if (map.at(y + 1).at(x).exists) {
+          DrawTexturePro(
+            connectionVertical,
+            {0, 0, (float)connectionVertical.width, (float)connectionVertical.height},
+            {xrel(drawx+7), yrel(drawy+19), xrel(connectionVertical.width), yrel(connectionVertical.height)},
+            {0, 0},
+            0,
+            WHITE
+          );
+        }
+      }
+
       if (encounters.size() > 0) {
         encounters.at(0).draw(playerx, playery);
       }
@@ -462,7 +515,7 @@ public:
 class Game {
 public:
   // TEMPORARY will only load when needed
-  Sound mystery_soundtrack = LoadSound("soundtrack/mystery_dungeon.mp3");
+  //Sound mystery_soundtrack = LoadSound("soundtrack/mystery_dungeon.mp3");
 
   std::vector<uiElement> ui;
   std::vector<Text> text;
@@ -489,7 +542,7 @@ public:
   int turnCount;
 
   void init(void) {
-    PlaySound(mystery_soundtrack);
+    //PlaySound(mystery_soundtrack);
     turnCount = 0;
 
     ui.push_back(screen);
@@ -528,6 +581,9 @@ public:
     std::string deckString = "deck: " + std::to_string(player.deckSize) + "/" + std::to_string(player.deckSize);
     text.at(3).text = deckString;
     shuffleDeck();
+    for (int i = 0; i < 5; i++) {
+      drawCard();
+    }
 
     genMap(10, 10);
   }
@@ -685,7 +741,10 @@ public:
     }
     for (int i = 0; i < map.size(); i++) {
       for (int j = 0; j < map.at(i).size(); j++) {
-        if (map.at(i).at(j).exists) {
+        if (map.at(i).at(j).x == player.x && map.at(i).at(j).y == player.y) {
+          std::cout << "X";
+        }
+        else if (map.at(i).at(j).exists) {
           std::cout << "@";
         }
         else {
@@ -722,13 +781,24 @@ public:
     for (int i = 0; i < text.size(); i++) {
       text.at(i).draw();
     }
+
+    // draw map
     for (int i = 0; i < map.size(); i++) {
       for (int j = 0; j < map.at(i).size(); j++) {
         if (map.at(i).at(j).exists) {
-          map.at(i).at(j).draw(player.x, player.y);
+          map.at(i).at(j).draw(player.x, player.y, map);
         }
       }
     }
+    // draw player
+    DrawTexturePro(
+      textures["player map"],
+      {0,0, (float)textures["player map"].width, (float)textures["player map"].height},
+      {xrel(416), yrel(43), xrel(16), yrel(16)},
+      {0, 0},
+      0,
+      WHITE
+    );
 
     // draw cursor
     DrawTexturePro(
@@ -746,7 +816,7 @@ public:
     for (const auto& [key, value]: textures) {
       UnloadTexture(value);
     }
-    UnloadSound(mystery_soundtrack);
+    //UnloadSound(mystery_soundtrack);
   }
 
   void drawCard() {
@@ -822,7 +892,7 @@ void Card::use(Game& game) {
 };
 
 int main (void) {
-  SetTraceLogLevel(LOG_NONE);
+  //SetTraceLogLevel(LOG_NONE);
   const float screenWidth = WIDTH;
   const float screenHeight = HEIGHT;
 
@@ -837,7 +907,8 @@ int main (void) {
 
     // Mini map
     {"room map", LoadTexture("assets/minimap/room.png")},
-    {"connection map", LoadTexture("assets/minimap/connection.png")},
+    {"connection horizontal", LoadTexture("assets/minimap/connection_horizontal.png")},
+    {"connection vertical", LoadTexture("assets/minimap/connection_vertical.png")},
     {"enemy map", LoadTexture("assets/minimap/enemy.png")},
     {"player map", LoadTexture("assets/minimap/player.png")},
     {"bomb map", LoadTexture("assets/minimap/bomb.png")},
