@@ -2,6 +2,7 @@
 #include <array>
 #include <chrono>
 #include <cstddef>
+#include <functional>
 #include <iostream>
 #include <random>
 #include <string>
@@ -44,6 +45,14 @@ int substrCount(const std::string &main_str, const std::string &target) {
 float xrel(float n) { return n / 480.0f * WIDTH; }
 
 float yrel(float n) { return n / 300.0f * HEIGHT; }
+
+typedef struct OverlayOption {
+  int x, y;
+  int width, height;
+  float rotation;
+  Texture2D texture;
+  std::function<void(void)> onClick;
+} overlayOption;
 
 typedef struct icon {
   float x, y;
@@ -212,8 +221,6 @@ public:
       }
     }
   }
-
-  void addAction(cardAction action) { actions.push_back(action); }
 
   void draw() {
     DrawTexturePro(texture, {0, 0, (float)texture.width, (float)texture.height},
@@ -515,6 +522,9 @@ public:
 
   int turnCount;
 
+  Color overlayColor = {0, 0, 0, 128};
+  std::vector<OverlayOption> overlayItems;
+
   void init(void) {
     // PlaySound(mystery_soundtrack);
     turnCount = 0;
@@ -766,6 +776,21 @@ public:
                    {xrel(8), yrel(8)}, static_cast<int>(player.direction) * 90,
                    WHITE);
 
+    // draw overlay
+    if (!overlayItems.empty()) {
+      DrawRectangle(0, 0, WIDTH, HEIGHT, overlayColor);
+
+      for (const auto &option : overlayItems) {
+        DrawTexturePro(
+            option.texture,
+            {0, 0, (float)option.texture.width, (float)option.texture.height},
+            {xrel(option.x + option.width / 2.0f),
+             yrel(option.y + option.height / 2.0f), xrel(option.width),
+             yrel(option.height)},
+            {xrel(option.width / 2.0f), yrel(option.height / 2.0f)},
+            option.rotation, WHITE);
+      }
+    }
     // draw cursor
     DrawTexturePro(textures["cursor"],
                    {0, 0, (float)textures["cursor"].width,
@@ -793,7 +818,60 @@ public:
     player.deck.pop_back();
   }
 
+  void startDirectionChoice(std::function<void(Direction)> onChosen) {
+    overlayItems.clear();
+
+    for (Direction dir :
+         {Direction::UP, Direction::RIGHT, Direction::DOWN, Direction::LEFT}) {
+      int x = 228;
+      int y = 68;
+
+      switch (dir) {
+      case Direction::UP:
+        x = 242;
+        y = 97 - 8;
+        break;
+      case Direction::RIGHT:
+        x = 258 + 8;
+        y = 113;
+        break;
+      case Direction::DOWN:
+        x = 242;
+        y = 129 + 8;
+        break;
+      case Direction::LEFT:
+        x = 226 - 8;
+        y = 113;
+        break;
+      };
+      overlayItems.push_back({x, y, 24, 24,
+                              static_cast<float>(static_cast<int>(dir) * 90),
+                              textures["move_scroll"], [this, dir, onChosen]() {
+                                onChosen(dir);
+                                overlayItems.clear();
+                              }});
+    }
+  }
+
   void click(float x, float y) {
+    if (!overlayItems.empty()) {
+      for (const auto &option : overlayItems) {
+        Rectangle bounds = {xrel(option.x), yrel(option.y), xrel(option.width),
+                            yrel(option.height)};
+
+        if (CheckCollisionPointRec({x, y}, bounds)) {
+          auto callback = option.onClick;
+          callback();
+          return;
+        }
+      }
+
+      // Clicked outside the arrows: cancel direction selection.
+      overlayItems.clear();
+
+      // Continue processing the click normally.
+      return;
+    }
     if (CheckCollisionPointRec({x, y},
                                {xrel(ui.at(4).x), yrel(ui.at(4).y),
                                 xrel(ui.at(4).width), yrel(ui.at(4).height)})) {
@@ -887,9 +965,18 @@ void moveDirection(Direction direction, Game &game) {
 void Card::use(Game &game) {
   for (int i = 0; i < actions.size(); i++) {
     switch (actions.at(i).action) {
-    case Actions::MOVE_CHOICE:
-      std::cout << "move choice" << std::endl;
-      break;
+    case Actions::MOVE_CHOICE: {
+      int distance = actions.at(i).value;
+
+      game.startDirectionChoice([this, &game, distance](Direction dir) {
+        for (int step = 0; step < distance; step++) {
+          moveDirection(dir, game);
+        }
+
+        game.discard(this);
+      });
+      return; // Don't discard the card until a direction is chosen.
+    }
     case Actions::MOVE_FORWARD:
       for (int j = 0; j < actions.at(i).value; j++) {
         moveDirection(game.player.direction, game);
@@ -904,7 +991,7 @@ void Card::use(Game &game) {
       break;
     case Actions::TURN_LEFT:
       game.player.direction = static_cast<Direction>(
-          (static_cast<int>(game.player.direction) - 1) % 4);
+          (static_cast<int>(game.player.direction) + 3) % 4);
       std::cout << "Just turned left"
                 << directionToString(game.player.direction) << std::endl;
       break;
