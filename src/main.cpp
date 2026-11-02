@@ -865,16 +865,15 @@ public:
           return;
         }
       }
-
       overlayItems.clear();
-
       return;
     }
     if (CheckCollisionPointRec({x, y},
                                {xrel(ui.at(3).x), yrel(ui.at(3).y),
                                 xrel(ui.at(3).width), yrel(ui.at(3).height)})) {
+      int handSize = player.hand.size();
       drawCard();
-      passTurn();
+      passTurn(handSize);
     }
     for (int i = 0; i < player.hand.size(); i++) {
       if (CheckCollisionPointRec({x, y}, {xrel(player.hand.at(i).x),
@@ -900,14 +899,18 @@ public:
     std::cout << "card discarded" << std::endl;
   }
 
-  void passTurn() {
+  void passTurn(int handSize) {
     turnCount += 1;
+    if (handSize == 7) {
+      return;
+    }
     int dealCount = turnCount % 5 + 1;
     text.at(1).text = "deal " + std::to_string(dealCount) + "/5";
-    if (dealCount == 1)
+    if (dealCount == 1) {
       while (player.hand.size() < 7) {
         drawCard();
       }
+    }
   }
 };
 
