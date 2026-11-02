@@ -866,15 +866,13 @@ public:
         }
       }
 
-      // Clicked outside the arrows: cancel direction selection.
       overlayItems.clear();
 
-      // Continue processing the click normally.
       return;
     }
     if (CheckCollisionPointRec({x, y},
-                               {xrel(ui.at(4).x), yrel(ui.at(4).y),
-                                xrel(ui.at(4).width), yrel(ui.at(4).height)})) {
+                               {xrel(ui.at(3).x), yrel(ui.at(3).y),
+                                xrel(ui.at(3).width), yrel(ui.at(3).height)})) {
       drawCard();
       passTurn();
     }

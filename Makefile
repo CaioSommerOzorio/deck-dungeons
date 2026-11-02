@@ -1,4 +1,4 @@
-LINUX_FLAGS = -lraylib -lGL -lm -lpthread -ldl -lrt
+LINUX_FLAGS = -lraylib -lX11 -lglfw -lGL -lm -lpthread -ldl -lrt
 WINDOWS_FLAGS = -I./raylib_win64/include -L./raylib_win64/lib \
 	-lraylib -lopengl32 -lgdi32 -lwinmm \
 	-static -static-libgcc -static-libstdc++
