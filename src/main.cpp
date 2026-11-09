@@ -18,6 +18,7 @@
 using namespace std::chrono_literals;
 
 class Game;
+
 std::unordered_map<std::string, Texture2D> textures;
 
 void replaceAll(std::string &str, const std::string &target,
@@ -43,7 +44,6 @@ int substrCount(const std::string &main_str, const std::string &target) {
 }
 
 float xrel(float n) { return n / 480.0f * WIDTH; }
-
 float yrel(float n) { return n / 300.0f * HEIGHT; }
 
 typedef struct OverlayOption {
@@ -493,6 +493,121 @@ public:
   }
 };
 
+// haven't even started writing ts yet and i already hate it
+//
+//   abc
+//   def
+//   ghi
+//   j@k
+//
+void drawView(int playerx, int playery, Direction direction,
+              std::vector<std::vector<Room>> &map, std::string dungeon) {
+  int dirx = 0;
+  int diry = 0;
+
+  // draw base dungeon
+  DrawTexturePro(textures[dungeon + " background"],
+                 {0, 0, (float)textures[dungeon + " background"].width,
+                  (float)textures[dungeon + " background"].height},
+                 {xrel(60), yrel(8), xrel(282), yrel(144)}, {0, 0}, 0, WHITE);
+
+  switch (direction) {
+  case Direction::UP:
+    diry -= 1;
+    break;
+  case Direction::RIGHT:
+    dirx += 1;
+    break;
+  case Direction::DOWN:
+    diry += 1;
+    break;
+  case Direction::LEFT:
+    dirx -= 1;
+    break;
+  }
+
+  // check boundaries
+  if (playerx + (3 * dirx) >= 0 && playery + (3 * diry) >= 0 &&
+      playerx + (3 * dirx) < map.size() - 1 &
+          playery + (3 * diry) < map.at(0).size() - 1) {
+    if (!map.at(playery + (3 * diry)).at(playerx + (3 * dirx)).exists) {
+      DrawTexturePro(textures[dungeon + " dead end3"],
+                     {0, 0, (float)textures[dungeon + " dead end3"].width,
+                      (float)textures[dungeon + " dead end3"].height},
+                     {xrel(172), yrel(56), xrel(58), yrel(58)}, {0, 0}, 0,
+                     WHITE);
+    }
+
+    if (map.at(playery + (3 * diry) + (std::abs(diry) - 1))
+            .at(playerx + (3 * dirx) + (std::abs(dirx) - 1))
+            .exists) {
+      DrawTexturePro(textures[dungeon + " wall3"],
+                     {0, 0, (float)textures[dungeon + " wall3"].width,
+                      (float)textures[dungeon + " wall3"].height},
+                     {xrel(161), yrel(41), xrel(12), yrel(80)}, {0, 0}, 0,
+                     WHITE);
+    } else {
+      // wall at a
+    }
+
+    if (map.at(playery + (3 * diry) - (std::abs(diry) - 1))
+            .at(playerx + (3 * dirx) - (std::abs(dirx) - 1))
+            .exists) {
+      // entrance at c
+    } else {
+      // wall at c
+    }
+  }
+
+  if (playerx + (2 * dirx) >= 0 && playery + (2 * diry) >= 0 &&
+      playerx + (2 * dirx) < map.size() - 1 &
+          playery + (2 * diry) < map.at(0).size() - 1) {
+    if (!map.at(playery + (2 * diry)).at(playerx + (2 * dirx)).exists) {
+      // wall at e
+    }
+
+    if (map.at(playery + (2 * diry) + (std::abs(diry) - 1))
+            .at(playerx + (2 * dirx) + (std::abs(dirx) - 1))
+            .exists) {
+      // entrance at d
+    } else {
+      // wall at d
+    }
+
+    if (map.at(playery + (2 * diry) - (std::abs(diry) - 1))
+            .at(playerx + (2 * dirx) - (std::abs(dirx) - 1))
+            .exists) {
+      // entrance at f
+    } else {
+      // wall at f
+    }
+  }
+
+  if (playerx + (1 * dirx) >= 0 && playery + (1 * diry) >= 0 &&
+      playerx + (1 * dirx) < map.size() - 1 &
+          playery + (1 * diry) < map.at(0).size() - 1) {
+    if (!map.at(playery + (1 * diry)).at(playerx + (1 * dirx)).exists) {
+      // wall at h
+    }
+
+    if (map.at(playery + (1 * diry) + (std::abs(diry) - 1))
+            .at(playerx + (1 * dirx) + (std::abs(dirx) - 1))
+            .exists) {
+      // entrance at g
+    } else {
+      // wall at g
+    }
+
+    if (map.at(playery + (1 * diry) - (std::abs(diry) - 1))
+            .at(playerx + (1 * dirx) - (std::abs(dirx) - 1))
+            .exists) {
+      // entrance at i
+    } else {
+      // wall at i
+    }
+  }
+}
+
 class Game {
 public:
   // TEMPORARY will only load when needed
@@ -504,7 +619,6 @@ public:
   Player player;
 
   uiElement screen{"screen", 0, 0, 0, 480, 300};
-  uiElement dungeon{"mystery_dungeon", 56, 8, 0, 288, 144};
   uiElement frame{"frame", 46, 0, 0, 309, 160};
   uiElement deck{"deck", 409, 172, 0, 70, 30};
   uiElement actionBar{"action_bar", 384, 102, 0, 80, 16};
@@ -521,6 +635,7 @@ public:
   std::mt19937 g{rd()};
 
   int turnCount;
+  std::string dungeon;
 
   Color overlayColor = {0, 0, 0, 128};
   std::vector<OverlayOption> overlayItems;
@@ -528,10 +643,10 @@ public:
   void init(void) {
     // PlaySound(mystery_soundtrack);
     turnCount = 0;
+    dungeon = "mystery";
     player.direction = Direction::UP;
 
     ui.push_back(screen);
-    ui.push_back(dungeon);
     ui.push_back(frame);
     ui.push_back(deck);
 
@@ -742,9 +857,13 @@ public:
   void drawObjects(float x, float y) {
     BeginDrawing();
     ClearBackground(WHITE);
+
+    // Draw dungeon view
     for (int i = 0; i < ui.size(); i++) {
       ui.at(i).draw();
     }
+    drawView(player.x, player.y, player.direction, map, dungeon);
+
     for (int i = 0; i < player.hand.size(); i++) {
       player.hand.at(i).draw();
       if (CheckCollisionPointRec({x, y}, {xrel(player.hand.at(i).x),
@@ -1023,7 +1142,17 @@ int main(void) {
   HideCursor();
 
   textures = {
-      {"mystery_dungeon", LoadTexture("assets/dungeons/mystery_dungeon.png")},
+      // dungeons
+      {"mystery background",
+       LoadTexture("assets/dungeons/mystery/background.png")},
+      {"mystery ceiling", LoadTexture("assets/dungeons/mystery/ceiling.png")},
+      {"mystery floor", LoadTexture("assets/dungeons/mystery/floor.png")},
+      {"mystery dead1", LoadTexture("assets/dungeons/mystery/dead_end1.png")},
+      {"mystery dead2", LoadTexture("assets/dungeons/mystery/dead_end2.png")},
+      {"mystery dead3", LoadTexture("assets/dungeons/mystery/dead_end3.png")},
+      {"mystery wall1", LoadTexture("assets/dungeons/mystery/wall1.png")},
+      {"mystery wall2", LoadTexture("assets/dungeons/mystery/wall2.png")},
+      {"mystery wall3", LoadTexture("assets/dungeons/mystery/wall3.png")},
 
       // Mini map
       {"room map", LoadTexture("assets/minimap/room.png")},
