@@ -46,6 +46,24 @@ int substrCount(const std::string &main_str, const std::string &target) {
 float xrel(float n) { return n / 480.0f * WIDTH; }
 float yrel(float n) { return n / 300.0f * HEIGHT; }
 
+void drawTexture(std::string texture, int x, int y, bool mirrored = false) {
+  if (!mirrored) {
+    DrawTexturePro(
+        textures[texture],
+        {0, 0, (float)textures[texture].width, (float)textures[texture].height},
+        {xrel(x), yrel(y), xrel(textures[texture].width),
+         yrel(textures[texture].height)},
+        {0, 0}, 0, WHITE);
+  } else {
+    DrawTexturePro(textures[texture],
+                   {0, 0, -(float)textures[texture].width,
+                    (float)textures[texture].height},
+                   {xrel(x), yrel(y), xrel(textures[texture].width),
+                    yrel(textures[texture].height)},
+                   {0, 0}, 0, WHITE);
+  }
+}
+
 typedef struct OverlayOption {
   int x, y;
   int width, height;
@@ -501,109 +519,139 @@ public:
 //   j@k
 //
 void drawView(int playerx, int playery, Direction direction,
-              std::vector<std::vector<Room>> &map, std::string dungeon) {
-  int dirx = 0;
-  int diry = 0;
+              const std::vector<std::vector<Room>> &map,
+              const std::string &dungeon) {
+  int forwardsX = 0;
+  int forwardsY = 0;
 
-  // draw base dungeon
-  DrawTexturePro(textures[dungeon + " background"],
-                 {0, 0, (float)textures[dungeon + " background"].width,
-                  (float)textures[dungeon + " background"].height},
-                 {xrel(60), yrel(8), xrel(282), yrel(144)}, {0, 0}, 0, WHITE);
+  int sidewaysX = 0;
+  int sidewaysY = 0;
 
   switch (direction) {
   case Direction::UP:
-    diry -= 1;
+    forwardsY = -1;
+    sidewaysX = 1;
     break;
   case Direction::RIGHT:
-    dirx += 1;
+    forwardsX = 1;
+    sidewaysY = 1;
     break;
   case Direction::DOWN:
-    diry += 1;
+    forwardsY = 1;
+    sidewaysX = 1;
     break;
   case Direction::LEFT:
-    dirx -= 1;
+    forwardsX = -1;
+    sidewaysY = -1;
     break;
   }
+  // draw base dungeon layout
+  drawTexture(dungeon + " background", 60, 8);
 
+  // depth 3
   // check boundaries
-  if (playerx + (3 * dirx) >= 0 && playery + (3 * diry) >= 0 &&
-      playerx + (3 * dirx) < map.size() - 1 &
-          playery + (3 * diry) < map.at(0).size() - 1) {
-    if (!map.at(playery + (3 * diry)).at(playerx + (3 * dirx)).exists) {
-      DrawTexturePro(textures[dungeon + " dead end3"],
-                     {0, 0, (float)textures[dungeon + " dead end3"].width,
-                      (float)textures[dungeon + " dead end3"].height},
-                     {xrel(172), yrel(56), xrel(58), yrel(58)}, {0, 0}, 0,
-                     WHITE);
+  if (playery + (forwardsY * 3) >= 0 &&
+      playery + (forwardsY * 3) < map.size() &&
+      playerx + (forwardsX * 3) >= 0 &&
+      playerx + (forwardsX * 3) < map.at(0).size()) {
+    // check if it's a dead end
+    if (!map.at(playery + (forwardsY * 3)).at(playerx + forwardsX * 3).exists) {
+      // draw dead end
+      drawTexture(dungeon + " dead end3", 172, 52);
     }
-
-    if (map.at(playery + (3 * diry) + (std::abs(diry) - 1))
-            .at(playerx + (3 * dirx) + (std::abs(dirx) - 1))
-            .exists) {
-      DrawTexturePro(textures[dungeon + " wall3"],
-                     {0, 0, (float)textures[dungeon + " wall3"].width,
-                      (float)textures[dungeon + " wall3"].height},
-                     {xrel(161), yrel(41), xrel(12), yrel(80)}, {0, 0}, 0,
-                     WHITE);
-    } else {
-      // wall at a
+    // check room to the right
+    if (playery + sidewaysY >= 0 && playery + sidewaysY < map.size() &&
+        playerx + sidewaysX >= 0 && playerx + sidewaysX < map.at(0).size()) {
+      if (map.at(playery + (forwardsY * 3) + sidewaysY)
+              .at(playerx + forwardsX * 3 + sidewaysX)
+              .exists) {
+        // draw entrance
+        drawTexture(dungeon + " dead end3", 114, 51, true)
+      } else {
+        // draw wall
+        drawTexture(dungeon + " wall3", 161, 42, true)
+      }
     }
-
-    if (map.at(playery + (3 * diry) - (std::abs(diry) - 1))
-            .at(playerx + (3 * dirx) - (std::abs(dirx) - 1))
-            .exists) {
-      // entrance at c
-    } else {
-      // wall at c
-    }
-  }
-
-  if (playerx + (2 * dirx) >= 0 && playery + (2 * diry) >= 0 &&
-      playerx + (2 * dirx) < map.size() - 1 &
-          playery + (2 * diry) < map.at(0).size() - 1) {
-    if (!map.at(playery + (2 * diry)).at(playerx + (2 * dirx)).exists) {
-      // wall at e
-    }
-
-    if (map.at(playery + (2 * diry) + (std::abs(diry) - 1))
-            .at(playerx + (2 * dirx) + (std::abs(dirx) - 1))
-            .exists) {
-      // entrance at d
-    } else {
-      // wall at d
-    }
-
-    if (map.at(playery + (2 * diry) - (std::abs(diry) - 1))
-            .at(playerx + (2 * dirx) - (std::abs(dirx) - 1))
-            .exists) {
-      // entrance at f
-    } else {
-      // wall at f
+    // check room to the left
+    if (playery - sidewaysY >= 0 && playery - sidewaysY < map.size() &&
+        playerx - sidewaysX >= 0 && playerx - sidewaysX < map.at(0).size()) {
+      if (map.at(playery + (forwardsY * 3) - sidewaysY)
+              .at(playerx + forwardsX * 3 - sidewaysX)
+              .exists) {
+        // draw entrance
+        drawTexture(dungeon + " dead end3", 114, 51)
+      } else {
+        // draw wall
+        drawTexture(dungeon + " wall3", 161, 42)
+      }
     }
   }
-
-  if (playerx + (1 * dirx) >= 0 && playery + (1 * diry) >= 0 &&
-      playerx + (1 * dirx) < map.size() - 1 &
-          playery + (1 * diry) < map.at(0).size() - 1) {
-    if (!map.at(playery + (1 * diry)).at(playerx + (1 * dirx)).exists) {
-      // wall at h
+  // depth 2
+  // check boundaries
+  if (playery + (forwardsY * 2) >= 0 &&
+      playery + (forwardsY * 2) < map.size() &&
+      playerx + (forwardsX * 2) >= 0 &&
+      playerx + (forwardsX * 2) < map.at(0).size()) {
+    // check if it's a dead end
+    if (!map.at(playery + (forwardsY * 2)).at(playerx + forwardsX * 2).exists) {
+      // draw dead end
+      drawTexture(dungeon + " dead end2", 172, 52);
     }
-
-    if (map.at(playery + (1 * diry) + (std::abs(diry) - 1))
-            .at(playerx + (1 * dirx) + (std::abs(dirx) - 1))
-            .exists) {
-      // entrance at g
-    } else {
-      // wall at g
+    // check room to the right
+    if (playery + sidewaysY >= 0 && playery + sidewaysY < map.size() &&
+        playerx + sidewaysX >= 0 && playerx + sidewaysX < map.at(0).size()) {
+      if (map.at(playery + (forwardsY * 2) + sidewaysY)
+              .at(playerx + forwardsX * 2 + sidewaysX)
+              .exists) {
+        // draw entrance
+      } else {
+        // draw wall
+      }
     }
-
-    if (map.at(playery + (1 * diry) - (std::abs(diry) - 1))
-            .at(playerx + (1 * dirx) - (std::abs(dirx) - 1))
-            .exists) {
-      // entrance at i
-    } else {
-      // wall at i
+    // check room to the left
+    if (playery - sidewaysY >= 0 && playery - sidewaysY < map.size() &&
+        playerx - sidewaysX >= 0 && playerx - sidewaysX < map.at(0).size()) {
+      if (map.at(playery + (forwardsY * 2) - sidewaysY)
+              .at(playerx + forwardsX * 2 - sidewaysX)
+              .exists) {
+        // draw entrance
+      } else {
+        // draw wall
+      }
+    }
+  }
+  // depth 1
+  // check boundaries
+  if (playery + (forwardsY * 1) >= 0 &&
+      playery + (forwardsY * 1) < map.size() &&
+      playerx + (forwardsX * 1) >= 0 &&
+      playerx + (forwardsX * 1) < map.at(0).size()) {
+    // check if it's a dead end
+    if (!map.at(playery + (forwardsY * 1)).at(playerx + forwardsX * 1).exists) {
+      // draw dead end
+      drawTexture(dungeon + " dead end1", 172, 52);
+    }
+    // check room to the right
+    if (playery + sidewaysY >= 0 && playery + sidewaysY < map.size() &&
+        playerx + sidewaysX >= 0 && playerx + sidewaysX < map.at(0).size()) {
+      if (map.at(playery + (forwardsY * 1) + sidewaysY)
+              .at(playerx + forwardsX * 1 + sidewaysX)
+              .exists) {
+        // draw entrance
+      } else {
+        // draw wall
+      }
+    }
+    // check room to the left
+    if (playery - sidewaysY >= 0 && playery - sidewaysY < map.size() &&
+        playerx - sidewaysX >= 0 && playerx - sidewaysX < map.at(0).size()) {
+      if (map.at(playery + (forwardsY * 1) - sidewaysY)
+              .at(playerx + forwardsX * 1 - sidewaysX)
+              .exists) {
+        // draw entrance
+      } else {
+        // draw wall
+      }
     }
   }
 }
@@ -1147,9 +1195,12 @@ int main(void) {
        LoadTexture("assets/dungeons/mystery/background.png")},
       {"mystery ceiling", LoadTexture("assets/dungeons/mystery/ceiling.png")},
       {"mystery floor", LoadTexture("assets/dungeons/mystery/floor.png")},
-      {"mystery dead1", LoadTexture("assets/dungeons/mystery/dead_end1.png")},
-      {"mystery dead2", LoadTexture("assets/dungeons/mystery/dead_end2.png")},
-      {"mystery dead3", LoadTexture("assets/dungeons/mystery/dead_end3.png")},
+      {"mystery dead end1",
+       LoadTexture("assets/dungeons/mystery/dead_end1.png")},
+      {"mystery dead end2",
+       LoadTexture("assets/dungeons/mystery/dead_end2.png")},
+      {"mystery dead end3",
+       LoadTexture("assets/dungeons/mystery/dead_end3.png")},
       {"mystery wall1", LoadTexture("assets/dungeons/mystery/wall1.png")},
       {"mystery wall2", LoadTexture("assets/dungeons/mystery/wall2.png")},
       {"mystery wall3", LoadTexture("assets/dungeons/mystery/wall3.png")},
