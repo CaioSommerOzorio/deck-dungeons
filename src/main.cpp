@@ -1055,8 +1055,8 @@ public:
       return;
     }
     if (CheckCollisionPointRec({x, y},
-                               {xrel(ui.at(3).x), yrel(ui.at(3).y),
-                                xrel(ui.at(3).width), yrel(ui.at(3).height)})) {
+                               {xrel(ui.at(2).x), yrel(ui.at(2).y),
+                                xrel(ui.at(2).width), yrel(ui.at(2).height)})) {
       int handSize = player.hand.size();
       drawCard();
       passTurn(handSize);
