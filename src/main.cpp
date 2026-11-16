@@ -521,6 +521,9 @@ public:
 void drawView(int playerx, int playery, Direction direction,
               const std::vector<std::vector<Room>> &map,
               const std::string &dungeon) {
+  if (map.empty() || map.at(0).empty())
+    return;
+
   int forwardsX = 0;
   int forwardsY = 0;
 
@@ -538,7 +541,7 @@ void drawView(int playerx, int playery, Direction direction,
     break;
   case Direction::DOWN:
     forwardsY = 1;
-    sidewaysX = 1;
+    sidewaysX = -1;
     break;
   case Direction::LEFT:
     forwardsX = -1;
@@ -546,7 +549,7 @@ void drawView(int playerx, int playery, Direction direction,
     break;
   }
   // draw base dungeon layout
-  drawTexture(dungeon + " background", 60, 8);
+  // drawTexture(dungeon + " background", 60, 8);
 
   // depth 3
   // check boundaries
@@ -557,32 +560,36 @@ void drawView(int playerx, int playery, Direction direction,
     // check if it's a dead end
     if (!map.at(playery + (forwardsY * 3)).at(playerx + forwardsX * 3).exists) {
       // draw dead end
-      drawTexture(dungeon + " dead end3", 172, 52);
+      drawTexture(dungeon + " dead end3", 161, 51);
     }
     // check room to the right
-    if (playery + sidewaysY >= 0 && playery + sidewaysY < map.size() &&
-        playerx + sidewaysX >= 0 && playerx + sidewaysX < map.at(0).size()) {
+    if (playery + (forwardsY * 3) + sidewaysY >= 0 &&
+        playery + (forwardsY * 3) + sidewaysY < map.size() &&
+        playerx + (forwardsX * 3) + sidewaysX >= 0 &&
+        playerx + (forwardsX * 3) + sidewaysX < map.at(0).size()) {
       if (map.at(playery + (forwardsY * 3) + sidewaysY)
               .at(playerx + forwardsX * 3 + sidewaysX)
               .exists) {
         // draw entrance
-        drawTexture(dungeon + " dead end3", 114, 51, true)
+        drawTexture(dungeon + " dead end3", 114, 51, true);
       } else {
         // draw wall
-        drawTexture(dungeon + " wall3", 161, 42, true)
+        // drawTexture(dungeon + " wall3", 161, 42, true);
       }
     }
     // check room to the left
-    if (playery - sidewaysY >= 0 && playery - sidewaysY < map.size() &&
-        playerx - sidewaysX >= 0 && playerx - sidewaysX < map.at(0).size()) {
+    if (playery + (forwardsY * 3) - sidewaysY >= 0 &&
+        playery + (forwardsY * 3) - sidewaysY < map.size() &&
+        playerx + (forwardsX * 3) - sidewaysX >= 0 &&
+        playerx + (forwardsX * 3) - sidewaysX < map.at(0).size()) {
       if (map.at(playery + (forwardsY * 3) - sidewaysY)
               .at(playerx + forwardsX * 3 - sidewaysX)
               .exists) {
         // draw entrance
-        drawTexture(dungeon + " dead end3", 114, 51)
+        // drawTexture(dungeon + " dead end3", 114, 51);
       } else {
         // draw wall
-        drawTexture(dungeon + " wall3", 161, 42)
+        // drawTexture(dungeon + " wall3", 161, 42);
       }
     }
   }
@@ -595,11 +602,13 @@ void drawView(int playerx, int playery, Direction direction,
     // check if it's a dead end
     if (!map.at(playery + (forwardsY * 2)).at(playerx + forwardsX * 2).exists) {
       // draw dead end
-      drawTexture(dungeon + " dead end2", 172, 52);
+      drawTexture(dungeon + " dead end2", 161, 41);
     }
     // check room to the right
-    if (playery + sidewaysY >= 0 && playery + sidewaysY < map.size() &&
-        playerx + sidewaysX >= 0 && playerx + sidewaysX < map.at(0).size()) {
+    if (playery + (forwardsY * 2) + sidewaysY >= 0 &&
+        playery + (forwardsY * 2) + sidewaysY < map.size() &&
+        playerx + (forwardsX * 2) + sidewaysX >= 0 &&
+        playerx + (forwardsX * 2) + sidewaysX < map.at(0).size()) {
       if (map.at(playery + (forwardsY * 2) + sidewaysY)
               .at(playerx + forwardsX * 2 + sidewaysX)
               .exists) {
@@ -609,12 +618,15 @@ void drawView(int playerx, int playery, Direction direction,
       }
     }
     // check room to the left
-    if (playery - sidewaysY >= 0 && playery - sidewaysY < map.size() &&
-        playerx - sidewaysX >= 0 && playerx - sidewaysX < map.at(0).size()) {
+    if (playery + (forwardsY * 2) - sidewaysY >= 0 &&
+        playery + (forwardsY * 2) - sidewaysY < map.size() &&
+        playerx + (forwardsX * 2) - sidewaysX >= 0 &&
+        playerx + (forwardsX * 2) - sidewaysX < map.at(0).size()) {
       if (map.at(playery + (forwardsY * 2) - sidewaysY)
               .at(playerx + forwardsX * 2 - sidewaysX)
               .exists) {
         // draw entrance
+        drawTexture(dungeon + " dead end2", 81, 41);
       } else {
         // draw wall
       }
@@ -629,11 +641,13 @@ void drawView(int playerx, int playery, Direction direction,
     // check if it's a dead end
     if (!map.at(playery + (forwardsY * 1)).at(playerx + forwardsX * 1).exists) {
       // draw dead end
-      drawTexture(dungeon + " dead end1", 172, 52);
+      drawTexture(dungeon + " dead end1", 137, 14);
     }
     // check room to the right
-    if (playery + sidewaysY >= 0 && playery + sidewaysY < map.size() &&
-        playerx + sidewaysX >= 0 && playerx + sidewaysX < map.at(0).size()) {
+    if (playery + forwardsY + sidewaysY >= 0 &&
+        playery + forwardsY + sidewaysY < map.size() &&
+        playerx + forwardsX + sidewaysX >= 0 &&
+        playerx + forwardsX + sidewaysX < map.at(0).size()) {
       if (map.at(playery + (forwardsY * 1) + sidewaysY)
               .at(playerx + forwardsX * 1 + sidewaysX)
               .exists) {
@@ -643,14 +657,18 @@ void drawView(int playerx, int playery, Direction direction,
       }
     }
     // check room to the left
-    if (playery - sidewaysY >= 0 && playery - sidewaysY < map.size() &&
-        playerx - sidewaysX >= 0 && playerx - sidewaysX < map.at(0).size()) {
+    if (playery + forwardsY - sidewaysY >= 0 &&
+        playery + forwardsY - sidewaysY < map.size() &&
+        playerx + forwardsX - sidewaysX >= 0 &&
+        playerx + forwardsX - sidewaysX < map.at(0).size()) {
       if (map.at(playery + (forwardsY * 1) - sidewaysY)
               .at(playerx + forwardsX * 1 - sidewaysX)
               .exists) {
         // draw entrance
+        drawTexture(dungeon + " dead end1", 9, 15);
       } else {
         // draw wall
+        // drawTexture(dungeon + " wall1", 60, 8);
       }
     }
   }
@@ -713,17 +731,18 @@ public:
     text.push_back(deckCount);
 
     // make deck
-    addCards("walk", 5);
-    addCards("run", 4);
-    addCards("dodge", 2);
-    addCards("turn right", 2);
-    addCards("turn left", 2);
-    addCards("stab", 3);
-    addCards("slash", 3);
-    addCards("defend", 2);
-    addCards("parry", 1);
-    addCards("quick draw", 3);
-    addCards("aim", 3);
+    // addCards("walk", 5);
+    // addCards("run", 4);
+    // addCards("dodge", 2);
+    // addCards("turn right", 2);
+    // addCards("turn left", 2);
+    // addCards("stab", 3);
+    // addCards("slash", 3);
+    // addCards("defend", 2);
+    // addCards("parry", 1);
+    // addCards("quick draw", 3);
+    // addCards("aim", 3);
+    addCards("walk", 20);
 
     player.deckSize = player.deck.size();
     std::string deckString = "deck: " + std::to_string(player.deckSize) + "/" +
@@ -907,10 +926,10 @@ public:
     ClearBackground(WHITE);
 
     // Draw dungeon view
+    drawView(player.x, player.y, player.direction, map, dungeon);
     for (int i = 0; i < ui.size(); i++) {
       ui.at(i).draw();
     }
-    drawView(player.x, player.y, player.direction, map, dungeon);
 
     for (int i = 0; i < player.hand.size(); i++) {
       player.hand.at(i).draw();
@@ -1179,7 +1198,7 @@ void Card::use(Game &game) {
 };
 
 int main(void) {
-  // SetTraceLogLevel(LOG_NONE);
+  SetTraceLogLevel(LOG_NONE);
   const float screenWidth = WIDTH;
   const float screenHeight = HEIGHT;
 
