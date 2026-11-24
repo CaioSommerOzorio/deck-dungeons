@@ -18,6 +18,7 @@
 using namespace std::chrono_literals;
 
 class Game;
+class uiElement;
 
 std::unordered_map<std::string, Texture2D> textures;
 
@@ -78,6 +79,18 @@ typedef struct icon {
   float rotation;
   Texture2D texture;
 } icon;
+
+enum class UiElements {
+  SCREEN,
+  FRAME,
+  DECK,
+  ACTIONBAR1,
+  ACTIONBAR2,
+  ACTIONBAR3,
+  DRAWICON,
+  DEALICON,
+  LOOKICON,
+};
 
 enum class Direction { UP, RIGHT, DOWN, LEFT };
 
@@ -418,6 +431,17 @@ public:
   }
 };
 
+class Door : public Encounter {
+public:
+  Texture2D mapIcon;
+  Texture2D texture;
+
+  Door() {
+    mapIcon = textures["door map"];
+    texture = textures["map view"];
+  }
+};
+
 class Player {
 public:
   int x, y;
@@ -698,6 +722,7 @@ public:
   std::mt19937 g{rd()};
 
   int turnCount;
+  int dealCount;
   std::string dungeon;
 
   Color overlayColor = {0, 0, 0, 128};
@@ -1052,11 +1077,19 @@ public:
       return;
     }
     if (CheckCollisionPointRec({x, y},
-                               {xrel(ui.at(2).x), yrel(ui.at(2).y),
-                                xrel(ui.at(2).width), yrel(ui.at(2).height)})) {
+                               {xrel(ui.at((int)UiElements::DECK).x),
+                                yrel(ui.at((int)UiElements::DECK).y),
+                                xrel(ui.at((int)UiElements::DECK).width),
+                                yrel(ui.at((int)UiElements::DECK).height)})) {
       int handSize = player.hand.size();
       drawCard();
       passTurn(handSize);
+    } else if (CheckCollisionPointRec(
+                   {x, y}, {xrel(ui.at((int)UiElements::ACTIONBAR1).x),
+                            yrel(ui.at((int)UiElements::ACTIONBAR1).y),
+                            xrel(ui.at((int)UiElements::ACTIONBAR1).width),
+                            yrel(ui.at((int)UiElements::ACTIONBAR1).height)})) {
+      deal();
     }
     for (int i = 0; i < player.hand.size(); i++) {
       if (CheckCollisionPointRec({x, y}, {xrel(player.hand.at(i).x),
@@ -1067,6 +1100,17 @@ public:
         return;
       }
     }
+  }
+
+  void deal() {
+    if (dealCount != 5) {
+      return;
+    }
+    while (player.hand.size() < 7) {
+      drawCard();
+    }
+    dealCount = 0;
+    passTurn(player.hand.size());
   }
 
   void discard(Card *card) {
@@ -1087,13 +1131,12 @@ public:
     if (handSize == 7) {
       return;
     }
-    int dealCount = turnCount % 5 + 1;
-    text.at(1).text = "deal " + std::to_string(dealCount) + "/5";
-    if (dealCount == 1) {
-      while (player.hand.size() < 7) {
-        drawCard();
-      }
+    if (dealCount == 5) {
+      return;
     }
+    dealCount = turnCount % 5 + 1;
+    text.at(1).text = "deal " + std::to_string(dealCount) + "/5";
+    std::cout << dealCount << std::endl;
   }
 };
 
@@ -1230,6 +1273,7 @@ int main(void) {
       {"enemy map", LoadTexture("assets/minimap/enemy.png")},
       {"player map", LoadTexture("assets/minimap/player.png")},
       {"bomb map", LoadTexture("assets/minimap/bomb.png")},
+      {"door map", LoadTexture("assets/minimap/door.png")},
 
       // Card related
       {"scroll", LoadTexture("assets/ui/scroll.png")},
